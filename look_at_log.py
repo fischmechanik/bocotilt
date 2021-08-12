@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Paths
-path_in = "/home/plkn/repos/bocotilt/test_logs/"
+path_in = "/mnt/data_dump/bocotilt/bocotilt_logs/"
 
 # Read degree log
 def read_degree_log():
@@ -60,8 +60,9 @@ for subject_idx, subject in enumerate(subject_list):
 
 
 # Get list of blocks excluding training blocks
-blocks = list(np.unique(trial_log[:, 2])[4:-1])
+blocks = list(np.unique(trial_log[:, 2])[4:])
 
+# Block averages
 rt_bonus = []
 rt_standard = []
 for b in blocks:
@@ -75,8 +76,27 @@ for b in blocks:
             (trial_log[:, 5] == 1) & (trial_log[:, 2] == b) & (trial_log[:, 7] == 0), 6,
         ].mean()
     )
-    
-    
-plt.plot(blocks, rt_standard)
-plt.plot(blocks, rt_bonus)
+
+# Single trial rts
+std_rts = trial_log[(trial_log[:, 5] == 1) & (trial_log[:, 7] == 0) & (trial_log[:, 2] > 4), 2]
+bonus_rts = trial_log[(trial_log[:, 5] == 1) & (trial_log[:, 7] == 1) & (trial_log[:, 2] > 4), 2]
+std_blocks = trial_log[(trial_log[:, 5] == 1) & (trial_log[:, 7] == 0) & (trial_log[:, 2] > 4), 6]
+bonus_blocks = trial_log[(trial_log[:, 5] == 1) & (trial_log[:, 7] == 1) & (trial_log[:, 2] > 4), 6] + 0.5
+
+# Plot
+fig, ax = plt.subplots()
+ax.scatter(std_rts, std_blocks, s=5, c="c", alpha=0.8)
+ax.scatter(bonus_rts, bonus_blocks, s=5, c="r", alpha=0.5)
+ax.plot(blocks, rt_standard, label="standard", c="c")
+ax.plot(blocks, rt_bonus, label="bonus", c="r")
+ax.set_xlabel("block", fontsize=10)
+ax.set_ylabel("ms", fontsize=10)
+ax.set_title('RTs')
+ax.grid(True)
+ax.legend()
+fig.tight_layout()
+plt.show()
+
+
+
 
