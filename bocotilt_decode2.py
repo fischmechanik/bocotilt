@@ -20,7 +20,7 @@ import time
 os.environ["JOBLIB_TEMP_FOLDER"] = "/tmp"
 
 # Define paths
-path_in = "/mnt/data_dump/bocotilt/1_eeg_icset_tf/"
+path_in = "/mnt/data_dump/bocotilt/2_eeg_cleaned/"
 path_out = "/mnt/data_dump/bocotilt/3_decoded/"
 
 # Define pruneframes (number of frames pruned at each side of epoch)
@@ -159,117 +159,438 @@ def decode_timeslice(X_all, trialinfo):
     decode_labels = []
 
     # Result matrices
-    acc_true = np.zeros((5))
-    acc_fake = np.zeros((5))
-    fmp_true = np.zeros((5, X_all.shape[1]))
-    fmp_fake = np.zeros((5, X_all.shape[1]))
+    n_models = 23
+    acc_true = np.zeros((n_models))
+    acc_fake = np.zeros((n_models))
+    fmp_true = np.zeros((n_models, X_all.shape[1]))
+    fmp_fake = np.zeros((n_models, X_all.shape[1]))
 
-    # 1. Decode bonus trials
-    decode_labels.append("bonus_trials")
+    # 0. Decode bonus trials
+    model_nr = 0
+    decode_labels.append("bonus vs standard trials")
     n_bootstrap_train = 1200
     n_bootstrap_test = 400
     idx_selected = trialinfo[:, 0] > 0  # all trials for now...
     X = X_all[idx_selected, :]
     y = trialinfo[idx_selected, 3]
     (
-        acc_true[0],
-        acc_fake[0],
-        fmp_true[0, :],
-        fmp_fake[0, :],
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
     ) = random_forest_classification(
         X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
     )
 
-    # Exclude incorrect trials
-    correct_idx = trialinfo[:, 8] == 1
-    X = X[correct_idx, :]
-    trialinfo = trialinfo[correct_idx, :]
+    # 1. Decode task in standard trials
+    model_nr = 1
+    decode_labels.append("task in standard trials")
+    n_bootstrap_train = 600
+    n_bootstrap_test = 200
+    idx_selected = trialinfo[:, 3] == 0  # only standard trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 4]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
 
-    # Iterate interruptions and positions
-    for irp in range(2):
-        for pos in range(2):
+    # 2. Decode task in bonus trials
+    model_nr = 2
+    decode_labels.append("task in bonus trials")
+    n_bootstrap_train = 600
+    n_bootstrap_test = 200
+    idx_selected = trialinfo[:, 3] == 1  # only bonus trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 4]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
 
-            # Trialinfo table columns:
-            # id, age, relevant, colpat, fisec, stim, interruption, probert, probeacc, key_pressed, key_correct, probe_interference
+    # 3. Decode cue in color task standard trials
+    model_nr = 3
+    decode_labels.append("cue in color task standard trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 0) & (
+        trialinfo[:, 4] == 0
+    )  # only color task standard trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 5]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
 
-            # Get interruption and position specific trials
-            intpos_idx = (trialinfo[:, 4] == pos + 1) & (trialinfo[:, 6] == irp)
-            X_intpos = X[intpos_idx, :]
-            trialinfo_intpos = trialinfo[intpos_idx, :]
+    # 4. Decode cue in tilt task standard trials
+    model_nr = 4
+    decode_labels.append("cue in tilt task standard trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 0) & (
+        trialinfo[:, 4] == 1
+    )  # only tilt task standard trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 5]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
 
-            # 1: Decode distractor vs target (coded in trialinfo already as zeros and ones)
-            (
-                acc_true[0, irp, pos],
-                acc_fake[0, irp, pos],
-                fmp_true[0, irp, pos, :],
-                fmp_fake[0, irp, pos, :],
-            ) = random_forest_classification(
-                X_intpos,
-                trialinfo_intpos[:, 2],
-                n_batch,
-                n_bootstrap_train,
-                n_bootstrap_test,
-            )
+    # 5. Decode cue in color task bonus trials
+    model_nr = 5
+    decode_labels.append("cue in color task bonus trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 1) & (
+        trialinfo[:, 4] == 0
+    )  # only color task bonus trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 5]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
 
-            # Select target and distractor trial indices
-            target_idx = trialinfo_intpos[:, 2] == 1
-            distractor_idx = trialinfo_intpos[:, 2] == 0
+    # 6. Decode cue in tilt task bonus trials
+    model_nr = 6
+    decode_labels.append("cue in tilt task bonus trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 1) & (
+        trialinfo[:, 4] == 1
+    )  # only tilt task bonus trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 5]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
 
-            # 2: Decode color vresus pattern in targets
-            (
-                acc_true[1, irp, pos],
-                acc_fake[1, irp, pos],
-                fmp_true[1, irp, pos, :],
-                fmp_fake[1, irp, pos, :],
-            ) = random_forest_classification(
-                X_intpos[target_idx, :],
-                trialinfo_intpos[target_idx, 3] - 1,
-                n_batch,
-                n_bootstrap_train,
-                n_bootstrap_test,
-            )
+    # 7. Decode target in color task standard trials
+    model_nr = 7
+    decode_labels.append("target in color task standard trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 0) & (
+        trialinfo[:, 4] == 0
+    )  # only color task standard trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 6]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
 
-            # 3: Decode color vresus pattern in distractors
-            (
-                acc_true[2, irp, pos],
-                acc_fake[2, irp, pos],
-                fmp_true[2, irp, pos, :],
-                fmp_fake[2, irp, pos, :],
-            ) = random_forest_classification(
-                X_intpos[distractor_idx, :],
-                trialinfo_intpos[distractor_idx, 3] - 1,
-                n_batch,
-                n_bootstrap_train,
-                n_bootstrap_test,
-            )
+    # 8. Decode target in tilt task standard trials
+    model_nr = 8
+    decode_labels.append("target in tilt task standard trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 0) & (
+        trialinfo[:, 4] == 1
+    )  # only tilt task standard trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 6]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
 
-            # 4: Decode response side in targets
-            (
-                acc_true[3, irp, pos],
-                acc_fake[3, irp, pos],
-                fmp_true[3, irp, pos, :],
-                fmp_fake[3, irp, pos, :],
-            ) = random_forest_classification(
-                X_intpos[target_idx, :],
-                trialinfo_intpos[target_idx, 9],
-                n_batch,
-                n_bootstrap_train,
-                n_bootstrap_test,
-            )
+    # 9. Decode target in color task bonus trials
+    model_nr = 9
+    decode_labels.append("target in color task bonus trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 1) & (
+        trialinfo[:, 4] == 0
+    )  # only color task bonus trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 6]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
 
-            # 5: Decode response side in distractors
-            (
-                acc_true[4, irp, pos],
-                acc_fake[4, irp, pos],
-                fmp_true[4, irp, pos, :],
-                fmp_fake[4, irp, pos, :],
-            ) = random_forest_classification(
-                X_intpos[distractor_idx, :],
-                trialinfo_intpos[distractor_idx, 9],
-                n_batch,
-                n_bootstrap_train,
-                n_bootstrap_test,
-            )
+    # 10. Decode target in tilt task bonus trials
+    model_nr = 10
+    decode_labels.append("target in tilt task bonus trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 1) & (
+        trialinfo[:, 4] == 1
+    )  # only tilt task bonus trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 6]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
+
+    # 11. Decode distractor in color task standard trials
+    model_nr = 11
+    decode_labels.append("distractor in color task standard trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 0) & (
+        trialinfo[:, 4] == 0
+    )  # only color task standard trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 7]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
+
+    # 12. Decode distractor in tilt task standard trials
+    model_nr = 12
+    decode_labels.append("distractor in tilt task standard trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 0) & (
+        trialinfo[:, 4] == 1
+    )  # only tilt task standard trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 7]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
+
+    # 13. Decode distractor in color task bonus trials
+    model_nr = 13
+    decode_labels.append("distractor in color task bonus trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 1) & (
+        trialinfo[:, 4] == 0
+    )  # only color task bonus trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 7]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
+
+    # 14. Decode distractor in tilt task bonus trials
+    model_nr = 14
+    decode_labels.append("distractor in tilt task bonus trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 1) & (
+        trialinfo[:, 4] == 1
+    )  # only tilt task bonus trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 7]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
+
+    # 15. Decode response interference in standard trials
+    model_nr = 15
+    decode_labels.append("response interference in standard trials")
+    n_bootstrap_train = 600
+    n_bootstrap_test = 200
+    idx_selected = trialinfo[:, 3] == 0  # only standard trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 8]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
+
+    # 16. Decode response interference in bonus trials
+    model_nr = 16
+    decode_labels.append("response interference in bonus trials")
+    n_bootstrap_train = 600
+    n_bootstrap_test = 200
+    idx_selected = trialinfo[:, 3] == 1  # only bonus trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 8]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
+
+    # 17. Decode task switch in standard trials
+    model_nr = 17
+    decode_labels.append("task switch in standard trials")
+    n_bootstrap_train = 600
+    n_bootstrap_test = 200
+    idx_selected = (trialinfo[:, 3] == 0) & (
+        trialinfo[:, 9] != -1
+    )  # only standard trials with valid sequence
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 9]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
+
+    # 18. Decode task switch in bonus trials
+    model_nr = 18
+    decode_labels.append("task switch in bonus trials")
+    n_bootstrap_train = 600
+    n_bootstrap_test = 200
+    idx_selected = (trialinfo[:, 3] == 1) & (
+        trialinfo[:, 9] != -1
+    )  # only bonus trials with valid sequence
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 9]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
+
+    # 19. Decode distractor in no response interference standard trials
+    model_nr = 19
+    decode_labels.append("distractor in no response interference standard trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 0) & (
+        trialinfo[:, 8] == 0
+    )  # only no response interference standard trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 7]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
+
+    # 20. Decode distractor in response interference standard trials
+    model_nr = 20
+    decode_labels.append("distractor in response interference standard trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 0) & (
+        trialinfo[:, 8] == 1
+    )  # only response interference standard trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 7]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
+
+    # 21. Decode distractor in no response interference bonus trials
+    model_nr = 21
+    decode_labels.append("distractor in no response interference bonus trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 1) & (
+        trialinfo[:, 8] == 0
+    )  # only no response interference bonus trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 7]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
+
+    # 22. Decode distractor in response interference bonus trials
+    model_nr = 22
+    decode_labels.append("distractor in response interference bonus trials")
+    n_bootstrap_train = 300
+    n_bootstrap_test = 100
+    idx_selected = (trialinfo[:, 3] == 1) & (
+        trialinfo[:, 8] == 1
+    )  # only response interference bonus trials
+    X = X_all[idx_selected, :]
+    y = trialinfo[idx_selected, 7]
+    (
+        acc_true[model_nr],
+        acc_fake[model_nr],
+        fmp_true[model_nr, :],
+        fmp_fake[model_nr, :],
+    ) = random_forest_classification(
+        X, y, n_batch, n_bootstrap_train, n_bootstrap_test,
+    )
 
     return {
         "acc_true": acc_true,
@@ -306,7 +627,7 @@ for dataset_idx, dataset in enumerate(datasets):
 
     # Load trialinfo
     trialinfo = np.genfromtxt(
-        dataset.split("VP")[0] + id_string + "_trialinfo_tf.csv", delimiter=","
+        dataset.split("VP")[0] + id_string + "_trialinfo.csv", delimiter=","
     )
 
     # Data as numpy arrayas as trials x channels x time

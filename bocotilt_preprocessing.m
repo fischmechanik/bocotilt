@@ -79,11 +79,18 @@ if ismember('thing1', dostuff)
         [EEG, rejsegs] = pop_autorej(EEG, 'nogui', 'on', 'threshold', 1000, 'startprob', 5, 'maxrej', 5);
         EEG.n_segs_rejected = length(rejsegs);
 
+        % Fin standard latency of event in epoch
+        lats = [];
+        for e = 1 : length(EEG.event)
+            lats(end+1) = mod(EEG.event(e).latency, EEG.pnts);
+        end
+        lat_mode = mode(lats);
+        
         % Compile a trialinfo for the erp dataset
         trialinfo = [];
         counter = 0;
         for e = 1 : length(EEG.event)
-            if strcmpi(EEG.event(e).type, 'trial')
+            if strcmpi(EEG.event(e).type, 'trial') & (mod(EEG.event(e).latency, EEG.pnts) == lat_mode)
 
                 counter = counter + 1;
 
@@ -122,3 +129,9 @@ if ismember('thing1', dostuff)
         
     end % End subject loop
 end % End thing 1
+
+lats = [];
+for e = 1 : length(EEG.event)
+    lats(end+1)=mod(EEG.event(e).latency, EEG.pnts);
+end
+lat_mode = mode(lats);
