@@ -1,0 +1,8 @@
+{
+    "[python]": {
+        "editor.formatOnPaste": false
+    },
+    "python.formatting.provider": "black",
+    "editor.formatOnSave": true,
+    "python.pythonPath": "/home/plkn/.conda/envs/stdenv/bin/python"
+}

@@ -20,8 +20,8 @@ import time
 os.environ["JOBLIB_TEMP_FOLDER"] = "/tmp"
 
 # Define paths
-path_in = "/mnt/data_dump/bocotilt/2_eeg_cleaned/"
-path_out = "/mnt/data_dump/bocotilt/3_decoded/"
+path_in = "/mnt/data2/bocotilt/2_eeg_cleaned/"
+path_out = "/mnt/data2/bocotilt/3_decoded/"
 
 # Define pruneframes (number of frames pruned at each side of epoch)
 pruneframes = 100
@@ -593,6 +593,7 @@ def decode_timeslice(X_all, trialinfo):
     )
 
     return {
+        "decode_labels": decode_labels,
         "acc_true": acc_true,
         "acc_fake": acc_fake,
         "fmp_true": fmp_true,
@@ -619,11 +620,6 @@ for dataset_idx, dataset in enumerate(datasets):
 
     # Get pruned time vector
     eeg_times = eeg_epochs.times[pruneframes:-pruneframes]
-
-    # Save times
-    if dataset_idx == 0:
-        out_file = os.path.join(path_out, "eeg_times.joblib")
-        joblib.dump(eeg_times, out_file)
 
     # Load trialinfo
     trialinfo = np.genfromtxt(
@@ -684,4 +680,66 @@ for dataset_idx, dataset in enumerate(datasets):
     out = joblib.Parallel(n_jobs=-2)(
         joblib.delayed(decode_timeslice)(X, trialinfo) for X in X_list
     )
+
+    # Re-arrange data into arrays
+    acc_true = np.stack([x["acc_true"] for x in out])
+    acc_fake = np.stack([x["acc_fake"] for x in out])
+    fmp_true = np.stack([x["fmp_true"] for x in out])
+    fmp_fake = np.stack([x["fmp_fake"] for x in out])
+
+    # Get number of classifications performed
+    n_clf = acc_true.shape[1]
+
+    # Get decode labels
+    decode_labels = out[0]["decode_labels"]
+
+    # Split feature importances into freqbands
+    fmp_true = np.split(fmp_true, 4, axis=2)
+    fmp_fake = np.split(fmp_fake, 4, axis=2)
+    fmp_true_delta = fmp_true[0]
+    fmp_fake_delta = fmp_fake[0]
+    fmp_true_theta = fmp_true[1]
+    fmp_fake_theta = fmp_fake[1]
+    fmp_true_alpha = fmp_true[2]
+    fmp_fake_alpha = fmp_fake[2]
+    fmp_true_beta = fmp_true[3]
+    fmp_fake_beta = fmp_fake[3]
+
+    # Re-arrange decoding-results as classification-specific lists
+    acc_true = [acc_true[:, i] for i in range(n_clf)]
+    acc_fake = [acc_fake[:, i] for i in range(n_clf)]
+    fmp_true_delta = [fmp_true_delta[:, i, :] for i in range(n_clf)]
+    fmp_fake_delta = [fmp_fake_delta[:, i, :] for i in range(n_clf)]
+    fmp_true_theta = [fmp_true_theta[:, i, :] for i in range(n_clf)]
+    fmp_fake_theta = [fmp_fake_theta[:, i, :] for i in range(n_clf)]
+    fmp_true_alpha = [fmp_true_alpha[:, i, :] for i in range(n_clf)]
+    fmp_fake_alpha = [fmp_fake_alpha[:, i, :] for i in range(n_clf)]
+    fmp_true_beta = [fmp_true_beta[:, i, :] for i in range(n_clf)]
+    fmp_fake_beta = [fmp_fake_beta[:, i, :] for i in range(n_clf)]
+
+    # Compile output
+    output = {
+        "decode_labels": decode_labels,
+        "eeg_times": eeg_times,
+        "acc_true": acc_true,
+        "acc_fake": acc_fake,
+        "fmp_true_delta": fmp_true_delta,
+        "fmp_fake_delta": fmp_fake_delta,
+        "fmp_true_theta": fmp_true_theta,
+        "fmp_fake_theta": fmp_fake_theta,
+        "fmp_true_alpha": fmp_true_alpha,
+        "fmp_fake_alpha": fmp_fake_alpha,
+        "fmp_true_beta": fmp_true_beta,
+        "fmp_fake_beta": fmp_fake_beta,
+    }
+
+    # Save
+    out_file = os.path.join(path_out, f"{id_string}_decoding_data.joblib")
+    joblib.dump(output, out_file)
+
+    # Take time
+    toc = time.perf_counter()
+
+    # Talk again
+    print(f"dataset completed in {toc - tic:0.4f} seconds")
 
