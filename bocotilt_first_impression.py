@@ -12,7 +12,7 @@ import glob
 import matplotlib.pyplot as plt
 
 # Path decoding data
-path_in = "/mnt/data2/bocotilt/3_decoded/"
+path_in = "/mnt/data_dump/bocotilt/3_decoded/"
 
 # Get list of datasets
 datasets = glob.glob(f"{path_in}/*.joblib")

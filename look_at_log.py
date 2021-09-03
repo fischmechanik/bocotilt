@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Paths
-path_in = "/mnt/data_dump/bocotilt/bocotilt_logs/"
+path_in = "/mnt/data_dump/bocotilt/0_logfiles/"
 
 # Read degree log
 def read_degree_log():
