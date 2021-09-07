@@ -1,8 +1,14 @@
-function[EEG] = bocotilt_event_coding(EEG)
+function[EEG] = bocotilt_event_coding(EEG, RESPS)
 
     % Struct for new events
     nec = 0;
     new_events = struct();
+
+    % Some response channel preprocessing
+    resps_left = rescale(RESPS.data(1, :));
+    resps_right = rescale(RESPS.data(2, :));
+    critval_responses = 0.5;
+    maxrt = 1500;
 
     % Iterate events recoding rt and accuracy info
     trial_nr = 0;
@@ -88,6 +94,36 @@ function[EEG] = bocotilt_event_coding(EEG)
                 correct_response = 1; % right
             end
 
+            % Lookup response
+            left_rt = min(find(resps_left(EEG.event(e).latency + 1200 : EEG.event(e).latency + 1200 + (maxrt / (1000 / EEG.srate))) >= critval_responses)) * (1000 / EEG.srate);
+            right_rt = min(find(resps_right(EEG.event(e).latency + 1200 : EEG.event(e).latency + 1200 + (maxrt / (1000 / EEG.srate))) >= critval_responses)) * (1000 / EEG.srate);
+            if isempty(left_rt) & isempty(right_rt)
+                rt = NaN;
+                response_side = 2;
+            elseif isempty(left_rt)
+                rt = right_rt;
+                response_side = 1;
+            elseif isempty(right_rt)
+                rt = left_rt;
+                response_side = 0;
+            else
+                [rt, resp_idx] = min([left_rt, right_rt]);
+                if resp_idx == 1
+                    response_side = 0;
+                else
+                    response_side = 1;
+                end
+            end
+
+            % Accuracy
+            if response_side == 2
+                acc = 2;
+            elseif response_side == correct_response
+                acc = 1;
+            else
+                acc = 0;
+            end
+
             % Create event
             nec = nec + 1;
             new_events(nec).latency = EEG.event(e).latency;
@@ -105,6 +141,9 @@ function[EEG] = bocotilt_event_coding(EEG)
             new_events(nec).response_interference = response_interference;
             new_events(nec).task_switch = task_switch;
             new_events(nec).correct_response = correct_response;
+            new_events(nec).response_side = response_side;
+            new_events(nec).rt = rt;
+            new_events(nec).accuracy = acc;
         
         end
 

@@ -8,11 +8,11 @@ PATH_ICSET         = '/mnt/data_dump/bocotilt/1_eeg_icset/';
 PATH_AUTOCLEANED   = '/mnt/data_dump/bocotilt/2_eeg_cleaned/';
 
 % Subjects
-subject_list =      {'VP01'};
+subject_list =      {'VP01', 'VP03'};
 
 % Test switch                  
-if false
-    subject_list = {'VP02'};
+if true
+    subject_list = {'VP03'};
 end
 
 % Part switch
@@ -37,12 +37,12 @@ if ismember('thing1', dostuff)
         EEG = pop_loadbv(PATH_RAW, [subject, '.vhdr'], [], []);
 
         % Fork response button channels
-        % RESPS = pop_select(EEG, 'channel', [127, 128]);
-        % EEG = pop_select(EEG, 'nochannel', [127, 128]);
+        RESPS = pop_select(EEG, 'channel', [65, 66]);
+        EEG = pop_select(EEG, 'nochannel', [65, 66]);
 
         % Coding
         % TODO: Response coding
-        EEG = bocotilt_event_coding(EEG);
+        EEG = bocotilt_event_coding(EEG, RESPS);
 
         % Add channel locations
         EEG = pop_chanedit(EEG, 'lookup', channel_location_file);
