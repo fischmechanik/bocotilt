@@ -1,6 +1,5 @@
 clear all;
 
-
 % PATH VARS
 PATH_EEGLAB        = '/home/plkn/eeglab2021.1/';
 PATH_RAW           = '/mnt/data_dump/bocotilt/0_eeg_raw/';
@@ -8,11 +7,11 @@ PATH_ICSET         = '/mnt/data_dump/bocotilt/1_eeg_icset/';
 PATH_AUTOCLEANED   = '/mnt/data_dump/bocotilt/2_eeg_cleaned/';
 
 % Subjects
-subject_list =      {'VP01', 'VP03'};
+subject_list = {'VP04'};
 
 % Test switch                  
 if true
-    subject_list = {'VP03'};
+    subject_list = {'VP04'};
 end
 
 % Part switch
@@ -31,17 +30,24 @@ if ismember('thing1', dostuff)
     % Iterate subjects
     for s = 1 : length(subject_list)
 
-        % Load
+        % participant identifiers
         subject = subject_list{s};
         id = str2num(subject(3 : 4));
-        EEG = pop_loadbv(PATH_RAW, [subject, '.vhdr'], [], []);
+
+        % Load
+        if  id == 4
+            EEG1 = pop_loadbv(PATH_RAW, [subject, '_01.vhdr'], [], []);
+            EEG2 = pop_loadbv(PATH_RAW, [subject, '_02.vhdr'], [], []);
+            EEG = pop_mergeset(EEG1, EEG2);
+        else
+            EEG = pop_loadbv(PATH_RAW, [subject, '.vhdr'], [], []);
+        end
 
         % Fork response button channels
         RESPS = pop_select(EEG, 'channel', [65, 66]);
         EEG = pop_select(EEG, 'nochannel', [65, 66]);
 
         % Coding
-        % TODO: Response coding
         EEG = bocotilt_event_coding(EEG, RESPS);
 
         % Add channel locations
@@ -72,7 +78,7 @@ if ismember('thing1', dostuff)
         EEG = pop_interp(EEG, EEG.chanlocs_original, 'spherical');
 
         % Epoch data
-        EEG = pop_epoch(EEG, {'trial'}, [-0.8, 2.3], 'newname', [subject '_epoched'], 'epochinfo', 'yes');
+        EEG = pop_epoch(EEG, {'trial'}, [-0.8, 3.4], 'newname', [subject '_epoched'], 'epochinfo', 'yes');
         EEG = pop_rmbase(EEG, [-200, 0]);
 
         % Autoreject trials
@@ -116,7 +122,7 @@ if ismember('thing1', dostuff)
         EEG = iclabel(EEG);
 
         % Find nobrainer
-        EEG.nobrainer = find(EEG.etc.ic_classification.ICLabel.classifications(:, 1) < 0.3 | EEG.etc.ic_classification.ICLabel.classifications(:, 3) > 0.3);
+        EEG.nobrainer = find(EEG.etc.ic_classification.ICLabel.classifications(:, 1) < 0.7);
 
         % Save IC set
         pop_saveset(EEG, 'filename', [subject, '_icset.set'], 'filepath', PATH_ICSET, 'check', 'on', 'savemode', 'twofiles');
@@ -128,10 +134,5 @@ if ismember('thing1', dostuff)
         pop_saveset(EEG, 'filename', [subject, '_cleaned.set'], 'filepath', PATH_AUTOCLEANED, 'check', 'on', 'savemode', 'twofiles');
         
     end % End subject loop
-end % End thing 1
 
-lats = [];
-for e = 1 : length(EEG.event)
-    lats(end+1)=mod(EEG.event(e).latency, EEG.pnts);
-end
-lat_mode = mode(lats);
+end % End thing 1
