@@ -45,7 +45,7 @@ def read_trial_log(subject):
 # Get subject list
 subject_list = [file[-13:-11] for file in glob.glob(f"{path_in}/*trials.txt")]
 
-subject_list = [subject_list[1]]
+subject_list = [subject_list[3]]
 
 # Read data
 for subject_idx, subject in enumerate(subject_list):
