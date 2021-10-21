@@ -149,6 +149,9 @@ if ismember('thing1', dostuff)
 
             end
         end
+
+        % Save trialinfo
+        EEG.trialinfo = trialinfo;
         writematrix(trialinfo, [PATH_AUTOCLEANED, subject, '_trialinfo.csv']);
 
         % Runica & ICLabel

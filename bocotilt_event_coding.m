@@ -217,6 +217,13 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions)
 
         new_events(e).sequence_position = sequence_position;
 
+        % Write length of last sequence
+        if tidx == trial_idx(end)
+            for f = sequence_start : e
+                new_events(f).sequence_length = sequence_length;
+            end
+        end
+
     end
 
     % Code ordered vs random and add probe display positions
