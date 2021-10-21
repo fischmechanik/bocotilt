@@ -1,4 +1,4 @@
-function[EEG] = bocotilt_event_coding(EEG, RESPS)
+function[EEG] = bocotilt_event_coding(EEG, RESPS, positions)
 
     % Struct for new events
     nec = 0;
@@ -152,6 +152,97 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS)
             stimulus_type = 'boundary';
         end
 
+    end
+
+    % Get indices of trials
+    trial_idx = [];
+    for e = 1 : length(new_events)
+        if strcmpi(new_events(nec).type, "trial")
+            trial_idx(end + 1) = e;
+        end
+    end
+
+    % Code sequences
+    old_block = 0;
+    n_nontrial = 0;
+    for tidx = 1 : length(trial_idx)
+
+        % Get trial index in event structure
+        e = trial_idx(tidx);
+
+        % If block changes
+        current_block = new_events(e).block_nr;
+        if current_block ~= old_block
+
+            % If not first block, fill previous sequence with values
+            if old_block ~= 0
+                for f = sequence_start : e - 1
+                    new_events(f).sequence_length = sequence_length;
+                end
+            end
+
+            old_block = current_block;
+            sequence_length = 1;
+            sequence_position = 1;
+            sequence_start = e;
+            previous_type = new_events(e).bonustrial;
+            current_type = new_events(e).bonustrial;
+
+        % If block does not change
+        else
+
+            % If sequence continues
+            current_type = new_events(e).bonustrial;
+            if current_type == previous_type
+                sequence_length = sequence_length + 1;
+                sequence_position = sequence_position + 1;
+                previous_type = new_events(e).bonustrial;
+
+            % If sequence does not continue
+            else
+
+                % Fill previous sequence with values
+                for f = sequence_start : e - 1
+                    new_events(f).sequence_length = sequence_length;
+                end
+
+                % Reset sequence parameters
+                sequence_length = 1;
+                sequence_position = 1;
+                sequence_start = e;
+                previous_type = new_events(e).bonustrial;
+            end
+            
+        end
+
+        new_events(e).sequence_position = sequence_position;
+
+    end
+
+    % Code ordered vs random and add probe display positions
+    for tidx = 1 : length(trial_idx)
+
+        % Get trial index in event structure
+        e = trial_idx(tidx);
+
+        if new_events(e).sequence_length == 16
+            new_events(e).ordered = 1;
+        else
+            new_events(e).ordered = 0;
+        end
+
+        % Add positions for features
+        new_events(e).position_color = positions(tidx, 1);
+        new_events(e).position_tilt = positions(tidx, 2);
+
+        % Add positions for target and distractor
+        if new_events(e).tilt_task == 1
+            new_events(e).position_target = new_events(e).position_tilt;
+            new_events(e).position_distractor = new_events(e).position_color;
+        else
+            new_events(e).position_target = new_events(e).position_color;
+            new_events(e).position_distractor = new_events(e).position_tilt;
+        end
     end
 
     % Replace events

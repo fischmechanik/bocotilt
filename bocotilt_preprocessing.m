@@ -2,16 +2,17 @@ clear all;
 
 % PATH VARS
 PATH_EEGLAB        = '/home/plkn/eeglab2021.1/';
-PATH_RAW           = '/mnt/data_dump/bocotilt/0_eeg_raw/';
-PATH_ICSET         = '/mnt/data_dump/bocotilt/1_eeg_icset/';
-PATH_AUTOCLEANED   = '/mnt/data_dump/bocotilt/2_eeg_cleaned/';
+PATH_LOGFILES      = '/mnt/data2/bocotilt/1_logfiles/';
+PATH_RAW           = '/mnt/data2/bocotilt/1_eeg_raw/';
+PATH_ICSET         = '/mnt/data2/bocotilt/2_icset/';
+PATH_AUTOCLEANED   = '/mnt/data2/bocotilt/3_autocleaned/';
 
 % Subjects
 subject_list = {'VP04'};
 
 % Test switch                  
 if true
-    subject_list = {'VP04'};
+    subject_list = {'VP06'};
 end
 
 % Part switch
@@ -47,8 +48,30 @@ if ismember('thing1', dostuff)
         RESPS = pop_select(EEG, 'channel', [65, 66]);
         EEG = pop_select(EEG, 'nochannel', [65, 66]);
 
-        % Coding
-        EEG = bocotilt_event_coding(EEG, RESPS);
+        % Open log file
+        fid = fopen([PATH_LOGFILES, subject, '_degreeLog.txt'], 'r');
+
+        % Extract lines as strings
+        logcell = {};
+        tline = fgetl(fid);
+        while ischar(tline)
+            logcell{end + 1} = tline;
+            tline = fgetl(fid);
+        end
+
+        % Delete header
+        logcell(1 : 3) = [];
+
+        % Get color and tilt positions in probe display (numbers 1-8)
+        positions = [];
+        for l = 1 : length(logcell)
+            line_values = split(logcell{l}, ' ');
+            positions(l, 1) = str2num(line_values{8});
+            positions(l, 2) = str2num(line_values{10});
+        end
+
+        % Event coding
+        EEG = bocotilt_event_coding(EEG, RESPS, positions);
 
         % Add channel locations
         EEG = pop_chanedit(EEG, 'lookup', channel_location_file);
@@ -111,7 +134,18 @@ if ismember('thing1', dostuff)
                                           EEG.event(e).distractor_red_left,...
                                           EEG.event(e).response_interference,...
                                           EEG.event(e).task_switch,...
-                                          EEG.event(e).correct_response];
+                                          EEG.event(e).correct_response,...
+                                          EEG.event(e).response_side,...
+                                          EEG.event(e).rt,...
+                                          EEG.event(e).accuracy,...
+                                          EEG.event(e).sequence_position,...
+                                          EEG.event(e).sequence_length,...
+                                          EEG.event(e).ordered,...
+                                          EEG.event(e).position_color,...
+                                          EEG.event(e).position_tilt,...
+                                          EEG.event(e).position_target,...
+                                          EEG.event(e).position_distractor,...                                
+                                          ];
 
             end
         end
