@@ -4,17 +4,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Paths
-path_in = "/mnt/data2/bocotilt/3_autocleaned/"
+path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
 
 # Get datasets
 datasets = glob.glob(f"{path_in}/*_trialinfo.csv")
 
 # Read datasets
+data = []
 for dataset_idx, dataset in enumerate(datasets):
-    if dataset_idx == 0:
-        dat = np.genfromtxt(dataset, delimiter=",")
-    else:
-        dat = np.stack((dat, np.genfromtxt(dataset, delimiter=",")))
+    data.append(np.genfromtxt(dataset, delimiter=","))
+
+dat = data[0]
 
 # Columns of dat
 #  0: id
