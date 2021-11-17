@@ -12,7 +12,7 @@ subject_list = {'VP06', 'VP07'};
 
 % Test switch                  
 if true
-    subject_list = {'VP07'};
+    subject_list = {'VP08'};
 end
 
 % Init eeglab
@@ -66,7 +66,7 @@ for s = 1 : length(subject_list)
 
     % Event coding
     EEG = bocotilt_event_coding(EEG, RESPS, positions);
-
+aa=bb;
     % Add channel locations
     EEG = pop_chanedit(EEG, 'lookup', channel_location_file);
     EEG.chanlocs_original = EEG.chanlocs;
@@ -95,7 +95,7 @@ for s = 1 : length(subject_list)
     EEG = pop_interp(EEG, EEG.chanlocs_original, 'spherical');
 
     % Epoch data
-    EEG = pop_epoch(EEG, {'trial'}, [-0.8, 3.4], 'newname', [subject '_epoched'], 'epochinfo', 'yes');
+    EEG = pop_epoch(EEG, {'trial'}, [-0.8, 2.6], 'newname', [subject '_epoched'], 'epochinfo', 'yes');
     EEG = pop_rmbase(EEG, [-200, 0]);
 
     % Autoreject trials

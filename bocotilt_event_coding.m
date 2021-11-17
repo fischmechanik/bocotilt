@@ -22,15 +22,16 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions)
 
             % Rest sequential marker
             previous_task = -1;
+
         end
 
         % If trial
-        if (strcmpi(EEG.event(e).type(1), {'S'}) & ismember(str2num(EEG.event(e).type(2 : 4)), [1 : 32]))
+        if (strcmpi(EEG.event(e).type(1), {'S'}) & ismember(str2num(EEG.event(e).type(2 : 4)) - 80, [0 : 32]))
     
             trial_nr = trial_nr + 1;
 
             % Get event code
-            ecode = str2num(EEG.event(e).type(2 : 4));
+            ecode = str2num(EEG.event(e).type(2 : 4)) - 80;
 
             % Decode bonustrial
             if ecode <= 16
@@ -95,8 +96,8 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions)
             end
 
             % Lookup response
-            left_rt = min(find(resps_left(EEG.event(e).latency + 1200 : EEG.event(e).latency + 1200 + (maxrt / (1000 / EEG.srate))) >= critval_responses)) * (1000 / EEG.srate);
-            right_rt = min(find(resps_right(EEG.event(e).latency + 1200 : EEG.event(e).latency + 1200 + (maxrt / (1000 / EEG.srate))) >= critval_responses)) * (1000 / EEG.srate);
+            left_rt = min(find(resps_left(EEG.event(e).latency + 800 : EEG.event(e).latency + 800 + (maxrt / (1000 / EEG.srate))) >= critval_responses)) * (1000 / EEG.srate);
+            right_rt = min(find(resps_right(EEG.event(e).latency + 800 : EEG.event(e).latency + 800 + (maxrt / (1000 / EEG.srate))) >= critval_responses)) * (1000 / EEG.srate);
             if isempty(left_rt) & isempty(right_rt)
                 rt = NaN;
                 response_side = 2;
@@ -144,6 +145,12 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions)
             new_events(nec).response_side = response_side;
             new_events(nec).rt = rt;
             new_events(nec).accuracy = acc;
+
+            % Mark bugged trials
+            if ecode == 0
+                new_events(nec).type = "zerocoded";
+                new_events(nec).code = "zerocoded";
+            end
         
         end
 
@@ -224,32 +231,6 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions)
             end
         end
 
-    end
-
-    % Code ordered vs random and add probe display positions
-    for tidx = 1 : length(trial_idx)
-
-        % Get trial index in event structure
-        e = trial_idx(tidx);
-
-        if new_events(e).sequence_length == 16
-            new_events(e).ordered = 1;
-        else
-            new_events(e).ordered = 0;
-        end
-
-        % Add positions for features
-        new_events(e).position_color = positions(tidx, 1);
-        new_events(e).position_tilt = positions(tidx, 2);
-
-        % Add positions for target and distractor
-        if new_events(e).tilt_task == 1
-            new_events(e).position_target = new_events(e).position_tilt;
-            new_events(e).position_distractor = new_events(e).position_color;
-        else
-            new_events(e).position_target = new_events(e).position_color;
-            new_events(e).position_distractor = new_events(e).position_tilt;
-        end
     end
 
     % Replace events
