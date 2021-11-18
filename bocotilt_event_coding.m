@@ -26,12 +26,12 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions)
         end
 
         % If trial
-        if (strcmpi(EEG.event(e).type(1), {'S'}) & ismember(str2num(EEG.event(e).type(2 : 4)) - 80, [0 : 32]))
+        if (strcmpi(EEG.event(e).type(1), {'S'}) & ismember(str2num(EEG.event(e).type(2 : 4)) - 40, [0 : 32]))
     
             trial_nr = trial_nr + 1;
 
             % Get event code
-            ecode = str2num(EEG.event(e).type(2 : 4)) - 80;
+            ecode = str2num(EEG.event(e).type(2 : 4)) - 40;
 
             % Decode bonustrial
             if ecode <= 16
@@ -40,7 +40,7 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions)
                 bonustrial = 0;
             end
 
-            % Dedode task
+            % Decode task
             if ismember(ecode, [1 : 8, 17 : 24])
                 tilt_task = 1;
             else
@@ -145,7 +145,16 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions)
             new_events(nec).response_side = response_side;
             new_events(nec).rt = rt;
             new_events(nec).accuracy = acc;
-
+            new_events(nec).position_color = positions(trial_nr, 1);
+            new_events(nec).position_tilt = positions(trial_nr, 2);
+            if tilt_task == 0
+                new_events(nec).position_target = new_events(nec).position_color;
+                new_events(nec).position_distractor = new_events(nec).position_tilt;
+            else
+                new_events(nec).position_target = new_events(nec).position_tilt;
+                new_events(nec).position_distractor = new_events(nec).position_color; 
+            end
+            
             % Mark bugged trials
             if ecode == 0
                 new_events(nec).type = "zerocoded";
@@ -231,6 +240,11 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions)
             end
         end
 
+    end
+
+    % Check if number of trials match
+    if trial_nr ~= size(positions, 1)
+        error('number of trials in logfile and number of trials in event markers do not match...')
     end
 
     % Replace events
