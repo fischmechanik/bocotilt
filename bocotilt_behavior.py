@@ -10,7 +10,7 @@ path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
 datasets = glob.glob(f"{path_in}/*_trialinfo.csv")
 
 # Get a single dataset for now...
-datasets = glob.glob(f"{path_in}/VP08_trialinfo.csv")
+datasets = glob.glob(f"{path_in}/VP09_trialinfo.csv")
 
 # Read datasets
 data = []
