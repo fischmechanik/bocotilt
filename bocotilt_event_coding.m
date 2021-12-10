@@ -1,4 +1,4 @@
-function[EEG] = bocotilt_event_coding(EEG, RESPS, positions)
+function[EEG] = bocotilt_event_coding(EEG, RESPS, positions, trial_log)
 
     % Struct for new events
     nec = 0;
@@ -147,6 +147,37 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions)
             new_events(nec).accuracy = acc;
             new_events(nec).position_color = positions(trial_nr, 1);
             new_events(nec).position_tilt = positions(trial_nr, 2);
+
+            % Code log response side
+            if trial_log(trial_nr, 1) == 0
+                log_response_side = 2;
+            elseif trial_log(trial_nr, 1) == 1
+                log_response_side = 0;
+            elseif trial_log(trial_nr, 1) == 2
+                log_response_side = 1;
+            end
+            new_events(nec).log_response_side = log_response_side;
+
+            % Code log rt
+            log_rt = trial_log(trial_nr, 3);
+            if log_rt == -1
+                log_rt = NaN;
+            end
+            if log_rt > maxrt
+                log_rt = NaN;
+            end
+            new_events(nec).log_rt = log_rt;
+
+            % Code log accuracy
+            log_accuracy = trial_log(trial_nr, 2);
+            if log_accuracy == 3
+                log_accuracy = 2;
+            end
+            if isnan(log_rt)
+                log_accuracy = 2;
+            end
+            new_events(nec).log_accuracy = log_accuracy;
+            
             if tilt_task == 0
                 new_events(nec).position_target = new_events(nec).position_color;
                 new_events(nec).position_distractor = new_events(nec).position_tilt;

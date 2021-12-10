@@ -64,8 +64,31 @@ for s = 1 : length(subject_list)
         positions(l, 2) = str2num(line_values{10});
     end
 
+    % Open trial log file
+    fid = fopen([PATH_LOGFILES, subject, '_trials.txt'], 'r');
+
+    % Extract lines as strings
+    logcell = {};
+    tline = fgetl(fid);
+    while ischar(tline)
+        logcell{end + 1} = tline;
+        tline = fgetl(fid);
+    end
+
+    % Delete header
+    logcell(1 : 3) = [];
+
+    % Get response side, accuracy and rt from log file
+    trial_log = [];
+    for l = 1 : length(logcell)
+        line_values = split(logcell{l}, '|');
+        trial_log(l, 1) = str2num(line_values{5});
+        trial_log(l, 2) = str2num(line_values{6});
+        trial_log(l, 3) = str2num(line_values{7});
+    end
+
     % Event coding
-    EEG = bocotilt_event_coding(EEG, RESPS, positions);
+    EEG = bocotilt_event_coding(EEG, RESPS, positions, trial_log);
 
     % Add channel locations
     EEG = pop_chanedit(EEG, 'lookup', channel_location_file);
