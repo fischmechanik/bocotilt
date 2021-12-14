@@ -8,11 +8,11 @@ PATH_ICSET         = '/mnt/data_dump/bocotilt/1_icset/';
 PATH_AUTOCLEANED   = '/mnt/data_dump/bocotilt/2_autocleaned/';
 
 % Subjects
-subject_list = {'VP06', 'VP07'};
+subject_list = {'VP08', 'VP09'};
 
 % Test switch                  
 if true
-    subject_list = {'VP09'};
+    subject_list = {'VP08', 'VP09'};
 end
 
 % Init eeglab
@@ -125,7 +125,7 @@ for s = 1 : length(subject_list)
     [EEG, rejsegs] = pop_autorej(EEG, 'nogui', 'on', 'threshold', 1000, 'startprob', 5, 'maxrej', 5);
     EEG.n_segs_rejected = length(rejsegs);
 
-    % Fin standard latency of event in epoch
+    % Find standard latency of event in epoch
     lats = [];
     for e = 1 : length(EEG.event)
         lats(end+1) = mod(EEG.event(e).latency, EEG.pnts);
@@ -155,6 +155,9 @@ for s = 1 : length(subject_list)
                                         EEG.event(e).response_side,...
                                         EEG.event(e).rt,...
                                         EEG.event(e).accuracy,...
+                                        EEG.event(e).log_response_side,...
+                                        EEG.event(e).log_rt,...
+                                        EEG.event(e).log_accuracy,...
                                         EEG.event(e).position_color,...
                                         EEG.event(e).position_tilt,...
                                         EEG.event(e).position_target,...

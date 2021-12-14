@@ -15,7 +15,7 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions, trial_log)
     for e = 1 : length(EEG.event)
 
         % Check for block start markers
-        if (strcmpi(EEG.event(e).type(1), {'S'}) & ismember(str2num(EEG.event(e).type(2 : 4)), [120 : 160]))
+        if (strcmpi(EEG.event(e).type(1), {'S'}) & ismember(str2num(EEG.event(e).type(2 : 4)), [120 : 130]))
 
             % Get block number
             block_nr = str2num(EEG.event(e).type(2 : 4)) - 120;

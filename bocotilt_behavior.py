@@ -9,15 +9,16 @@ path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
 # Get datasets
 datasets = glob.glob(f"{path_in}/*_trialinfo.csv")
 
-# Get a single dataset for now...
-datasets = glob.glob(f"{path_in}/VP09_trialinfo.csv")
-
 # Read datasets
 data = []
 for dataset_idx, dataset in enumerate(datasets):
     data.append(np.genfromtxt(dataset, delimiter=","))
 
-dat = data[0]
+# Get subject data
+dat = data[2]
+
+# get id
+subject_id = int(dat[0, 0])
 
 # Columns of dat
 #  0: id
@@ -34,61 +35,165 @@ dat = data[0]
 # 11: response_side
 # 12: rt
 # 13: accuracy
-# 14: position_color
-# 15: position_tilt
-# 16: position_target
-# 17: position_distractor
-# 18: sequence_position
-# 19: sequence_length
+# 14: log_response_side
+# 15: log_rt
+# 16: log_accuracy
+# 17: position_color
+# 18: position_tilt
+# 19: position_target
+# 20: position_distractor
+# 21: sequence_position
+# 22: sequence_length
 
 # Get RT
+col_rt = 12
+col_accuracy = 13
+col_blocknum = 1
+col_bonustrial = 3
+col_seqposition = 21
 bon_pos1_mean = np.nanmean(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 1) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 1)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 std_pos1_mean = np.nanmean(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 1) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 1)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 bon_pos2_mean = np.nanmean(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 2) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 2)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 std_pos2_mean = np.nanmean(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 2) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 2)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 bon_pos3_mean = np.nanmean(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 3) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 3)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 std_pos3_mean = np.nanmean(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 3) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 3)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 bon_pos4_mean = np.nanmean(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 4) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 4)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 std_pos4_mean = np.nanmean(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 4) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 4)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 bon_pos5_mean = np.nanmean(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 5) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 5)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 std_pos5_mean = np.nanmean(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 5) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 5)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 bon_pos6_mean = np.nanmean(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 6) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 6)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 std_pos6_mean = np.nanmean(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 6) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 6)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 bon_pos7_mean = np.nanmean(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 7) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 7)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 std_pos7_mean = np.nanmean(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 7) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 7)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 bon_pos8_mean = np.nanmean(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 8) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 8)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 std_pos8_mean = np.nanmean(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 8) & (dat[:, 1] > 4) & (dat[:, 13] == 1), 12]
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 8)
+        & (dat[:, col_blocknum] > 4)
+        & (dat[:, col_accuracy] == 1),
+        col_rt,
+    ]
 )
 
 # Arange plotting data
@@ -135,62 +240,270 @@ rects2 = ax[0].bar(
     x_pos + barwidth / 2, bon_means, barwidth, label="bonus", color="salmon"
 )
 ax[0].set_ylabel("ms")
-ax[0].set_ylim((500, 900))
+ax[0].set_ylim((0, 1100))
 ax[0].set_xticks(x_pos)
 ax[0].set_xticklabels(condition_labels)
-ax[0].set_title("RT")
+ax[0].set_title(f"subject {subject_id} - RT")
 ax[0].yaxis.grid(True)
 ax[0].legend()
 
 # Get accuracy
 bon_pos1_acc = sum(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 1) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 1) & (dat[:, 18] == 1) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 1)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 1)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 std_pos1_acc = sum(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 1) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 0) & (dat[:, 18] == 1) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 1)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 1)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 bon_pos2_acc = sum(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 2) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 1) & (dat[:, 18] == 2) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 2)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 2)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 std_pos2_acc = sum(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 2) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 0) & (dat[:, 18] == 2) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 2)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 2)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 bon_pos3_acc = sum(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 3) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 1) & (dat[:, 18] == 3) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 3)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 3)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 std_pos3_acc = sum(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 3) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 0) & (dat[:, 18] == 3) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 3)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 3)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 bon_pos4_acc = sum(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 4) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 1) & (dat[:, 18] == 4) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 4)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 4)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 std_pos4_acc = sum(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 4) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 0) & (dat[:, 18] == 4) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 4)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 4)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 bon_pos5_acc = sum(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 5) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 1) & (dat[:, 18] == 5) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 5)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 5)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 std_pos5_acc = sum(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 5) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 0) & (dat[:, 18] == 5) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 5)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 5)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 bon_pos6_acc = sum(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 6) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 1) & (dat[:, 18] == 6) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 6)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 6)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 std_pos6_acc = sum(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 6) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 0) & (dat[:, 18] == 6) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 6)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 6)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 bon_pos7_acc = sum(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 7) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 1) & (dat[:, 18] == 7) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 7)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 7)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 std_pos7_acc = sum(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 7) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 0) & (dat[:, 18] == 7) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 7)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 7)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 bon_pos8_acc = sum(
-    dat[(dat[:, 3] == 1) & (dat[:, 18] == 8) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 1) & (dat[:, 18] == 8) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 8)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 1)
+        & (dat[:, col_seqposition] == 8)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 std_pos8_acc = sum(
-    dat[(dat[:, 3] == 0) & (dat[:, 18] == 8) & (dat[:, 1] > 4), 13] == 1
-) / len(dat[(dat[:, 3] == 0) & (dat[:, 18] == 8) & (dat[:, 1] > 4), 13])
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 8)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+    == 1
+) / len(
+    dat[
+        (dat[:, col_bonustrial] == 0)
+        & (dat[:, col_seqposition] == 8)
+        & (dat[:, col_blocknum] > 4),
+        col_accuracy,
+    ]
+)
 
 # Arange plotting data
 barwidth = 0.35
@@ -223,7 +536,7 @@ rects2 = ax[1].bar(
     x_pos + barwidth / 2, bon_acc, barwidth, label="bonus", color="salmon"
 )
 ax[1].set_ylabel("% correct")
-ax[1].set_ylim((0.5, 0.9))
+ax[1].set_ylim((0.5, 1))
 ax[1].set_xticks(x_pos)
 ax[1].set_xticklabels(condition_labels)
 ax[1].set_title("accuracy")
@@ -232,4 +545,29 @@ ax[1].yaxis.grid(True)
 
 fig.tight_layout()
 plt.show()
+
+# Detect log accuracy != forcechan accuracy
+mismatch_idx = dat[:, 16] != dat[:, 13]
+
+misdat = dat[mismatch_idx, :]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
