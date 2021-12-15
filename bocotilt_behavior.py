@@ -15,7 +15,7 @@ for dataset_idx, dataset in enumerate(datasets):
     data.append(np.genfromtxt(dataset, delimiter=","))
 
 # Get subject data
-dat = data[2]
+dat = data[0]
 
 # get id
 subject_id = int(dat[0, 0])
@@ -240,7 +240,7 @@ rects2 = ax[0].bar(
     x_pos + barwidth / 2, bon_means, barwidth, label="bonus", color="salmon"
 )
 ax[0].set_ylabel("ms")
-ax[0].set_ylim((0, 1100))
+ax[0].set_ylim((0, 900))
 ax[0].set_xticks(x_pos)
 ax[0].set_xticklabels(condition_labels)
 ax[0].set_title(f"subject {subject_id} - RT")
@@ -545,11 +545,6 @@ ax[1].yaxis.grid(True)
 
 fig.tight_layout()
 plt.show()
-
-# Detect log accuracy != forcechan accuracy
-mismatch_idx = dat[:, 16] != dat[:, 13]
-
-misdat = dat[mismatch_idx, :]
 
 
 

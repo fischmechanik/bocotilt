@@ -4,9 +4,11 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions, trial_log)
     nec = 0;
     new_events = struct();
 
-    % Some response channel preprocessing
-    resps_left = rescale(RESPS.data(1, :));
-    resps_right = rescale(RESPS.data(2, :));
+    % Prepare response channels
+    idx_left = find(strcmp({RESPS.chanlocs.labels}, 'LeftKey'));
+    idx_right = find(strcmp({RESPS.chanlocs.labels}, 'RightKey'));
+    resps_left = rescale(RESPS.data(idx_left, :));
+    resps_right = rescale(RESPS.data(idx_right, :));
     critval_responses = 0.5;
     maxrt = 1500;
 

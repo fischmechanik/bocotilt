@@ -1,0 +1,73 @@
+% Clear residuals
+clear all;
+
+% Path variables
+PATH_EEGLAB      = '/home/plkn/eeglab2021.1/';
+PATH_AUTOCLEANED = '/mnt/data_dump/bocotilt/2_autocleaned/';
+
+% Subject list
+subject_list = {'VP08'};
+
+% Init eeglab
+addpath(PATH_EEGLAB);
+eeglab;
+
+% Loop subjects
+for s = 1 : length(subject_list)
+
+    % Load data
+    EEG = pop_loadset('filename', [subject_list{s} '_cleaned.set'], 'filepath', PATH_AUTOCLEANED, 'loadmode', 'all');
+
+    % Trial data
+    % Columns:
+    %  1: id
+    %  2: block_nr
+    %  3: trial_nr
+    %  4: bonustrial
+    %  5: tilt_task
+    %  6: cue_ax
+    %  7: target_red_left
+    %  8: distractor_red_left
+    %  9: response_interference
+    % 10: task_switch
+    % 11: correct_response
+    % 12: response_side
+    % 13: rt
+    % 14: accuracy
+    % 15: log_response_side
+    % 16: log_rt
+    % 17: log_accuracy
+    % 18: position_color
+    % 19: position_tilt
+    % 20: position_target
+    % 21: position_distractor
+    % 22: sequence_position
+    % 23: sequence_length
+    trialinfo = EEG.trialinfo;
+
+    % Time vector
+    erp_times = EEG.times;
+    
+    % The data matrix: channels x times x trials
+    eeg_data = EEG.data;
+
+    % Get index of channel
+    channel = 'Fz';
+    channel_idx = find(strcmp({EEG.chanlocs.labels}, channel));
+
+    % Get indices of correct standard and bonus trials
+    idx_std = find(trialinfo(:, 17) == 1 & trialinfo(:, 4) == 1);
+    idx_bon = trialinfo(:, 17) == 1 & trialinfo(:, 4) == 0;
+
+    % Get ERPs
+    erp_std = mean(squeeze(eeg_data(channel_idx, :, idx_std)), 2);
+    erp_bon = mean(squeeze(eeg_data(channel_idx, :, idx_bon)), 2);
+
+    % Plot
+    figure;
+    plot(erp_times, erp_std);
+    hold on;
+    plot(erp_times, erp_bon);
+    legend({'standard', 'bonus'})
+
+end
