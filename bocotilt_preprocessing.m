@@ -12,7 +12,7 @@ subject_list = {'VP08', 'VP09', 'VP17'};
 
 % Test switch                  
 if true
-    subject_list = {'VP17'};
+    subject_list = {'VP25'};
 end
 
 % Init eeglab

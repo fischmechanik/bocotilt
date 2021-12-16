@@ -72,9 +72,9 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions, trial_log)
 
             % Check response interference
             if target_red_left == distractor_red_left
-                response_interference = 1;
-            else
                 response_interference = 0;
+            else
+                response_interference = 1;
             end
 
             % Code task sequence
@@ -89,6 +89,7 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions, trial_log)
             previous_task = current_task;
 
             % Decode correct response side
+            % TODO: Adjust correct response according to versions
             if tilt_task == 1 & target_red_left == 1
                 correct_response = 0; % left
             elseif tilt_task == 0 & target_red_left == 0
