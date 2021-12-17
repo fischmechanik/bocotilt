@@ -8,10 +8,10 @@ PATH_ICSET         = '/mnt/data_dump/bocotilt/1_icset/';
 PATH_AUTOCLEANED   = '/mnt/data_dump/bocotilt/2_autocleaned/';
 
 % Subjects
-subject_list = {'VP08', 'VP09', 'VP17'};
+subject_list = {'VP08', 'VP09', 'VP17', 'VP25'};
 
 % Test switch                  
-if true
+if false
     subject_list = {'VP25'};
 end
 
@@ -30,13 +30,7 @@ for s = 1 : length(subject_list)
     id = str2num(subject(3 : 4));
 
     % Load
-    if  id == 4
-        EEG1 = pop_loadbv(PATH_RAW, [subject, '_01.vhdr'], [], []);
-        EEG2 = pop_loadbv(PATH_RAW, [subject, '_02.vhdr'], [], []);
-        EEG = pop_mergeset(EEG1, EEG2);
-    else
-        EEG = pop_loadbv(PATH_RAW, [subject, '.vhdr'], [], []);
-    end
+    EEG = pop_loadbv(PATH_RAW, [subject, '.vhdr'], [], []);
 
     % Fork response button channels
     RESPS = pop_select(EEG, 'channel', [65, 66]);
@@ -87,43 +81,124 @@ for s = 1 : length(subject_list)
         trial_log(l, 3) = str2num(line_values{7});
     end
 
+    % Get version of task
+    if id < 8
+        error("Preprocessing invalid for id < 8.");
+    elseif id == 8
+        EEG.task_version = 1;
+    else
+        EEG.task_version = mod(id, 8);
+        if EEG.task_version == 0
+            EEG.task_version = 8;
+        end
+    end
+
     % Event coding
     EEG = bocotilt_event_coding(EEG, RESPS, positions, trial_log);
 
+    % Add FCz as empty channel
+    EEG.data(end + 1, :) = 0;
+    EEG.nbchan = size(EEG.data, 1);
+    EEG.chanlocs(end + 1).labels = 'FCz';
+
     % Add channel locations
     EEG = pop_chanedit(EEG, 'lookup', channel_location_file);
+
+    % Save original channel locations (for later interpolation)
     EEG.chanlocs_original = EEG.chanlocs;
+
+    % Remove FCz again
+    EEG = pop_select(EEG, 'nochannel', [127]);
 
     % Remove data at boundaries
     EEG = pop_rmdat(EEG, {'boundary'}, [0, 1], 1);
 
     % Resample data
+    ERP = pop_resample(EEG, 250);
     EEG = pop_resample(EEG, 200);
 
     % Filter
-    EEG = pop_basicfilter(EEG, [1 : EEG.nbchan], 'Cutoff', [1, 30], 'Design', 'butter', 'Filter', 'bandpass', 'Order', 4, 'RemoveDC', 'on', 'Boundary', 'boundary');  
+    ERP = pop_basicfilter(ERP, [1 : ERP.nbchan], 'Cutoff', [0.01, 30], 'Design', 'butter', 'Filter', 'bandpass', 'Order', 4, 'RemoveDC', 'on', 'Boundary', 'boundary'); 
+    EEG = pop_basicfilter(EEG, [1 : EEG.nbchan], 'Cutoff', [1, 30], 'Design', 'butter', 'Filter', 'bandpass', 'Order', 4, 'RemoveDC', 'on', 'Boundary', 'boundary');
         
     % Bad channel detection
+    [ERP, i1] = pop_rejchan(ERP, 'elec', [1 : ERP.nbchan], 'threshold', 10, 'norm', 'on', 'measure', 'kurt');
+    [ERP, i2] = pop_rejchan(ERP, 'elec', [1 : ERP.nbchan], 'threshold', 5, 'norm', 'on', 'measure', 'prob');
+    ERP.chans_rejected = [i1, i2];
     [EEG, i1] = pop_rejchan(EEG, 'elec', [1 : EEG.nbchan], 'threshold', 10, 'norm', 'on', 'measure', 'kurt');
     [EEG, i2] = pop_rejchan(EEG, 'elec', [1 : EEG.nbchan], 'threshold', 5, 'norm', 'on', 'measure', 'prob');
     EEG.chans_rejected = [i1, i2];
 
     % Reref common average
+    ERP = pop_reref(ERP, []);
     EEG = pop_reref(EEG, []);
 
     % Determine rank of data
     dataRank = sum(eig(cov(double(EEG.data'))) > 1e-6); 
 
     % Interpolate channels
+    ERP = pop_interp(ERP, ERP.chanlocs_original, 'spherical');
     EEG = pop_interp(EEG, EEG.chanlocs_original, 'spherical');
 
     % Epoch data
+    ERP = pop_epoch(ERP, {'trial'}, [-0.8, 2.6], 'newname', [subject '_epoched'], 'epochinfo', 'yes');
+    ERP = pop_rmbase(ERP, [-200, 0]);
     EEG = pop_epoch(EEG, {'trial'}, [-0.8, 2.6], 'newname', [subject '_epoched'], 'epochinfo', 'yes');
     EEG = pop_rmbase(EEG, [-200, 0]);
 
     % Autoreject trials
+    [ERP, rejsegs] = pop_autorej(ERP, 'nogui', 'on', 'threshold', 1000, 'startprob', 5, 'maxrej', 5);
+    ERP.n_segs_rejected = length(rejsegs);
     [EEG, rejsegs] = pop_autorej(EEG, 'nogui', 'on', 'threshold', 1000, 'startprob', 5, 'maxrej', 5);
     EEG.n_segs_rejected = length(rejsegs);
+
+    % Find standard latency of event in epoch
+    lats = [];
+    for e = 1 : length(ERP.event)
+        lats(end+1) = mod(ERP.event(e).latency, ERP.pnts);
+    end
+    lat_mode = mode(lats);
+    
+    % Compile a trialinfo matrix
+    trialinfo = [];
+    counter = 0;
+    for e = 1 : length(ERP.event)
+        if strcmpi(ERP.event(e).type, 'trial') & (mod(ERP.event(e).latency, ERP.pnts) == lat_mode)
+
+            counter = counter + 1;
+
+            % Compile table
+            trialinfo(counter, :) = [id,...
+                                        ERP.event(e).block_nr,...
+                                        ERP.event(e).trial_nr,...
+                                        ERP.event(e).bonustrial,...
+                                        ERP.event(e).tilt_task,...
+                                        ERP.event(e).cue_ax,...
+                                        ERP.event(e).target_red_left,...
+                                        ERP.event(e).distractor_red_left,...
+                                        ERP.event(e).response_interference,...
+                                        ERP.event(e).task_switch,...
+                                        ERP.event(e).correct_response,...
+                                        ERP.event(e).response_side,...
+                                        ERP.event(e).rt,...
+                                        ERP.event(e).accuracy,...
+                                        ERP.event(e).log_response_side,...
+                                        ERP.event(e).log_rt,...
+                                        ERP.event(e).log_accuracy,...
+                                        ERP.event(e).position_color,...
+                                        ERP.event(e).position_tilt,...
+                                        ERP.event(e).position_target,...
+                                        ERP.event(e).position_distractor,...    
+                                        ERP.event(e).sequence_position,...
+                                        ERP.event(e).sequence_length,...
+                                        ];
+
+        end
+    end
+
+    % Save trialinfo
+    ERP.trialinfo = trialinfo;
+    writematrix(trialinfo, [PATH_AUTOCLEANED, subject, '_trialinfo_erp.csv']);
 
     % Find standard latency of event in epoch
     lats = [];
@@ -131,6 +206,7 @@ for s = 1 : length(subject_list)
         lats(end+1) = mod(EEG.event(e).latency, EEG.pnts);
     end
     lat_mode = mode(lats);
+    
     
     % Compile a trialinfo matrix
     trialinfo = [];
@@ -178,15 +254,23 @@ for s = 1 : length(subject_list)
     EEG = iclabel(EEG);
 
     % Find nobrainer
-    EEG.nobrainer = find(EEG.etc.ic_classification.ICLabel.classifications(:, 1) < 0.7);
+    EEG.nobrainer = find(EEG.etc.ic_classification.ICLabel.classifications(:, 1) < 0.3 | EEG.etc.ic_classification.ICLabel.classifications(:, 3) > 0.3);
+
+    % Copy ICs to erpset
+    ERP = pop_editset(ERP, 'icachansind', 'EEG.icachansind', 'icaweights', 'EEG.icaweights', 'icasphere', 'EEG.icasphere');
+    ERP.etc = EEG.etc;
+    ERP.nobrainer = EEG.nobrainer;
 
     % Save IC set
-    pop_saveset(EEG, 'filename', [subject, '_icset.set'], 'filepath', PATH_ICSET, 'check', 'on', 'savemode', 'twofiles');
+    pop_saveset(ERP, 'filename', [subject, '_icset_erp.set'], 'filepath', PATH_ICSET, 'check', 'on');
+    pop_saveset(EEG, 'filename', [subject, '_icset.set'], 'filepath', PATH_ICSET, 'check', 'on');
 
     % Remove components
+    ERP = pop_subcomp(ERP, ERP.nobrainer, 0);
     EEG = pop_subcomp(EEG, EEG.nobrainer, 0);
 
     % Save clean data
-    pop_saveset(EEG, 'filename', [subject, '_cleaned.set'], 'filepath', PATH_AUTOCLEANED, 'check', 'on', 'savemode', 'twofiles');
+    pop_saveset(ERP, 'filename', [subject, '_cleaned_erp.set'], 'filepath', PATH_AUTOCLEANED, 'check', 'on');
+    pop_saveset(EEG, 'filename', [subject, '_cleaned.set'], 'filepath', PATH_AUTOCLEANED, 'check', 'on');
     
 end

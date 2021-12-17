@@ -12,6 +12,15 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions, trial_log)
     critval_responses = 0.5;
     maxrt = 1500;
 
+    % Look up correct color responses
+    if ismember(EEG.task_version, [1, 2, 5, 6])
+        correct_green = 0;
+        correct_red = 1;
+    else
+        correct_green = 1;
+        correct_red = 0;
+    end
+
     % Iterate events recoding rt and accuracy info
     trial_nr = 0;
     for e = 1 : length(EEG.event)
@@ -89,13 +98,19 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions, trial_log)
             previous_task = current_task;
 
             % Decode correct response side
-            % TODO: Adjust correct response according to versions
+
+            % If tilt task target left
             if tilt_task == 1 & target_red_left == 1
-                correct_response = 0; % left
+                correct_response = 0;
+            % If tilt task target right
+            elseif tilt_task == 1 & target_red_left == 0
+                correct_response = 1;
+            % If color task target red 
+            elseif tilt_task == 0 & target_red_left == 1
+                correct_response = correct_red;
+            % If color task target green
             elseif tilt_task == 0 & target_red_left == 0
-                correct_response = 0; % left
-            else
-                correct_response = 1; % right
+                correct_response = correct_green;
             end
 
             % Lookup response
@@ -263,6 +278,11 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions, trial_log)
                 previous_type = new_events(e).bonustrial;
             end
             
+        end
+
+        % If first in sequence, adjust task-switch to undefined
+        if sequence_position == 1
+            new_events(e).task_switch = -1;
         end
 
         new_events(e).sequence_position = sequence_position;

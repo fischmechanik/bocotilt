@@ -6,7 +6,7 @@ PATH_EEGLAB      = '/home/plkn/eeglab2021.1/';
 PATH_AUTOCLEANED = '/mnt/data_dump/bocotilt/2_autocleaned/';
 
 % Subject list
-subject_list = {'VP08', 'VP09', 'VP17'};
+subject_list = {'VP25'};
 
 % Init eeglab
 addpath(PATH_EEGLAB);
@@ -19,7 +19,7 @@ erp_matrix = [];
 for s = 1 : length(subject_list)
 
     % Load data
-    EEG = pop_loadset('filename', [subject_list{s} '_cleaned.set'], 'filepath', PATH_AUTOCLEANED, 'loadmode', 'all');
+    EEG = pop_loadset('filename', [subject_list{s} '_cleaned_erp.set'], 'filepath', PATH_AUTOCLEANED, 'loadmode', 'all');
 
     % Trial data
     % Columns:
@@ -48,9 +48,6 @@ for s = 1 : length(subject_list)
     % 23: sequence_length
     trialinfo = EEG.trialinfo;
 
-    % Workaround...
-    trialinfo(trialinfo(:, 22) == 1, 10) = -1;
-
     % Time vector
     erp_times = EEG.times;
     
@@ -61,7 +58,7 @@ for s = 1 : length(subject_list)
     channel_idx = [];
     %channels = {'Fz', 'F1', 'F2', 'FC1', 'FC2', 'FFC1h', 'FFC2h'};
     %channels = {'Pz', 'POz', 'PPO1h', 'PPO2h'};
-    channels = {'POz'};
+    channels = {'FCz'};
     for ch = 1 : length(channels)
         channel_idx(end + 1) = find(strcmp({EEG.chanlocs.labels}, channels{ch}));
     end
