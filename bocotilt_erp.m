@@ -6,7 +6,7 @@ PATH_EEGLAB      = '/home/plkn/eeglab2021.1/';
 PATH_AUTOCLEANED = '/mnt/data_dump/bocotilt/2_autocleaned/';
 
 % Subject list
-subject_list = {'VP25'};
+subject_list = {'VP08', 'VP09', 'VP17', 'VP25'};
 
 % Init eeglab
 addpath(PATH_EEGLAB);
@@ -56,9 +56,9 @@ for s = 1 : length(subject_list)
 
     % Get index of channel
     channel_idx = [];
-    %channels = {'Fz', 'F1', 'F2', 'FC1', 'FC2', 'FFC1h', 'FFC2h'};
+    channels = {'Fz', 'F1', 'F2', 'FC1', 'FCz', 'FC2', 'FFC1h', 'FFC2h'};
     %channels = {'Pz', 'POz', 'PPO1h', 'PPO2h'};
-    channels = {'FCz'};
+    %channels = {'POz'};
     for ch = 1 : length(channels)
         channel_idx(end + 1) = find(strcmp({EEG.chanlocs.labels}, channels{ch}));
     end
@@ -119,18 +119,19 @@ plot(erp_times, grand_averages(2, :), ':', 'LineWidth', 2, 'Color', 'k');
 plot(erp_times, grand_averages(3, :), '-', 'LineWidth', 2, 'Color', 'r');
 plot(erp_times, grand_averages(4, :), ':', 'LineWidth', 2, 'Color', 'r');
 legend({'standard-repeat', 'standard-switch', 'bonus-repeat', 'bonus-switch'});
+title(channels)
 xline(0);
 xline(800);
 xlim([-500, 2000]);
 
-% Create a plot of ERPs, averaged across subjects
-figure;
-plot(erp_times, grand_averages(5, :), '-', 'LineWidth', 2, 'Color', 'k');
-hold on;
-plot(erp_times, grand_averages(6, :), ':', 'LineWidth', 2, 'Color', 'k');
-plot(erp_times, grand_averages(7, :), '-', 'LineWidth', 2, 'Color', 'r');
-plot(erp_times, grand_averages(8, :), ':', 'LineWidth', 2, 'Color', 'r');
-legend({'standard-start', 'standard-end', 'bonus-start', 'bonus-end'});
-xline(0);
-xline(800);
-xlim([-500, 2000]);
+% % Create a plot of ERPs, averaged across subjects
+% figure;
+% plot(erp_times, grand_averages(5, :), '-', 'LineWidth', 2, 'Color', 'k');
+% hold on;
+% plot(erp_times, grand_averages(6, :), ':', 'LineWidth', 2, 'Color', 'k');
+% plot(erp_times, grand_averages(7, :), '-', 'LineWidth', 2, 'Color', 'r');
+% plot(erp_times, grand_averages(8, :), ':', 'LineWidth', 2, 'Color', 'r');
+% legend({'standard-start', 'standard-end', 'bonus-start', 'bonus-end'});
+% xline(0);
+% xline(800);
+% xlim([-500, 2000]);
