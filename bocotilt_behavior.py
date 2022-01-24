@@ -15,7 +15,7 @@ for dataset_idx, dataset in enumerate(datasets):
     data.append(np.genfromtxt(dataset, delimiter=","))
 
 # Get subject data
-dat = data[4]
+dat = data[2]
 
 # get id
 subject_id = int(dat[0, 0])
