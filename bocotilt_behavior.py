@@ -15,7 +15,7 @@ for dataset_idx, dataset in enumerate(datasets):
     data.append(np.genfromtxt(dataset, delimiter=","))
 
 # Get subject data
-dat = data[2]
+dat = data[5]
 
 # get id
 subject_id = int(dat[0, 0])
@@ -46,8 +46,8 @@ subject_id = int(dat[0, 0])
 # 22: sequence_length
 
 # Get RT
-col_rt = 12
-col_accuracy = 13
+col_rt = 15
+col_accuracy = 16
 col_blocknum = 1
 col_bonustrial = 3
 col_seqposition = 21
@@ -536,7 +536,7 @@ rects2 = ax[1].bar(
     x_pos + barwidth / 2, bon_acc, barwidth, label="bonus", color="salmon"
 )
 ax[1].set_ylabel("% correct")
-ax[1].set_ylim((0.5, 1))
+ax[1].set_ylim((0.3, 1))
 ax[1].set_xticks(x_pos)
 ax[1].set_xticklabels(condition_labels)
 ax[1].set_title("accuracy")

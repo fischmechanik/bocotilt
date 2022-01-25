@@ -26,32 +26,6 @@ path_out = "/mnt/data_dump/bocotilt/3_decoded/"
 # Define pruneframes (number of frames pruned at each side of epoch)
 pruneframes = 100
 
-# A smoothening function
-def moving_average(x, w):
-    return np.convolve(x, np.ones(w), "valid") / w
-
-
-# Filter-Hilbert function
-def filter_hilbert(data, lowcut, highcut, fs, order=5):
-    nyq = 0.5 * fs
-    low = lowcut / nyq
-    high = highcut / nyq
-    b, a = scipy.signal.butter(order, [low, high], btype="band")
-    y = scipy.signal.filtfilt(b, a, data)
-    y = scipy.signal.hilbert(y)
-    return y
-
-
-# Function for bootstrapping averages
-def bootstrap_averages(data_in, n_batch, n_averages, n_features):
-    averages = np.zeros((n_averages, n_features))
-    for n in range(n_averages):
-        averages[n, :] = data_in[np.random.choice(data_in.shape[0], n_batch), :].mean(
-            axis=0
-        )
-    return averages
-
-
 # Function performing random forest classification
 # Works only for 2 classes, y-data must be coded using 0 and 1
 def random_forest_classification(X, y, combined_codes):
@@ -229,25 +203,33 @@ for dataset_idx, dataset in enumerate(datasets):
 
     # Load eeg data
     eeg_epochs = mne.io.read_epochs_eeglab(dataset).apply_baseline(baseline=(-0.2, 0))
-    aa=bb
-    # Get pruned time vector
-    eeg_times = eeg_epochs.times[pruneframes:-pruneframes]
+
+    # Perform single trial time-frequency analysis
+    freqs = np.arange(2, 20)
+    sfreq = 200
+    tf_epochs = mne.time_frequency.tfr_morlet(eeg_epochs, freqs, n_cycles=4.,
+                            average=False, return_itc=False, n_jobs=-2)
+    
+    # Apply baseline procedure
+    tf_epochs.apply_baseline(mode='logratio', baseline=(-.100, 0))
+
+    # Prune in time
+    tf_times = tf_epochs.times[pruneframes : -pruneframes]
+    tf_data = tf_epochs.data[:, :, :, pruneframes : -pruneframes]
 
     # Load trialinfo
     trialinfo = np.genfromtxt(
         dataset.split("VP")[0] + "VP" + id_string + "_trialinfo.csv", delimiter=","
     )
     
-    # Data as numpy arrayas as trials x channels x time
-    eeg_data = eeg_epochs.get_data() * 1e6
 
     # Exclude non-valid switch-repetition trials and practice blocks
     idx_to_keep = (trialinfo[:, 9] >= 0) & (trialinfo[:, 1] >= 5)
     trialinfo = trialinfo[idx_to_keep, :]
-    eeg_data = eeg_data[idx_to_keep, :, :]
+    tf_data = tf_data[idx_to_keep, :, :, :]
     
     # get dims
-    n_trials, n_channels, n_times = eeg_data.shape
+    n_trials, n_channels, n_freqs, n_times = tf_data.shape
     
     # Trialinfo cols:
     #  0: id
@@ -295,56 +277,28 @@ for dataset_idx, dataset in enumerate(datasets):
         ]
     )
 
-    # Freqband specific data as numpy arrayas as channels x trials x time
-    data_delta = np.zeros((n_channels, n_trials, len(eeg_times)))
-    data_theta = np.zeros((n_channels, n_trials, len(eeg_times)))
-    data_alpha = np.zeros((n_channels, n_trials, len(eeg_times)))
-    data_beta = np.zeros((n_channels, n_trials, len(eeg_times)))
-    for channel_idx in range(0, n_channels):
-
-        # Channel data as n_trials x n_times
-        data2d = eeg_data[:, channel_idx, :]
-
-        # Concatenate epochs
-        data1d = data2d.reshape((n_trials * n_times))
-
-        # Filter
-        delta = np.square(np.abs(filter_hilbert(data1d, 2, 3, 200, order=5)))
-        theta = np.square(np.abs(filter_hilbert(data1d, 4, 7, 200, order=5)))
-        alpha = np.square(np.abs(filter_hilbert(data1d, 8, 12, 200, order=5)))
-        beta = np.square(np.abs(filter_hilbert(data1d, 13, 30, 200, order=5)))
-
-        # Back to n_trials x n_times and prune edge artifacts
-        data_delta[channel_idx, :, :] = delta.reshape((n_trials, n_times))[
-            :, pruneframes:-pruneframes
-        ]
-        data_theta[channel_idx, :, :] = theta.reshape((n_trials, n_times))[
-            :, pruneframes:-pruneframes
-        ]
-        data_alpha[channel_idx, :, :] = alpha.reshape((n_trials, n_times))[
-            :, pruneframes:-pruneframes
-        ]
-        data_beta[channel_idx, :, :] = beta.reshape((n_trials, n_times))[
-            :, pruneframes:-pruneframes
-        ]
-
     # Re-arrange data
     X_list = []
-    for time_idx, timeval in enumerate(eeg_times):
+    for time_idx, timeval in enumerate(tf_times):
 
-        # Data as trials x channels
-        delta = data_delta[:, :, time_idx].T
-        theta = data_theta[:, :, time_idx].T
-        alpha = data_alpha[:, :, time_idx].T
-        beta = data_beta[:, :, time_idx].T
+        # Data as trials x channels x frequencies
+        timepoint_data = tf_data[:, :, :, time_idx]
+        
+        # Trials in rows
+        timepoint_data_2d = timepoint_data.reshape((n_trials, n_channels * n_freqs))
+        
+        # Return function
+        # timepoint_data2 = timepoint_data_2d.reshape((n_trials, n_channels, n_freqs))
 
         # Stack data
-        X_list.append(np.hstack((delta, theta, alpha, beta)))
+        X_list.append(timepoint_data_2d)
 
     # Fit random forest
     out = joblib.Parallel(n_jobs=-2)(
         joblib.delayed(decode_timeslice)(X, trialinfo, combined_codes) for X in X_list
     )
+    
+    aa=bb
 
     # Re-arrange data into arrays
     acc_true = np.stack([x["acc_true"] for x in out])
