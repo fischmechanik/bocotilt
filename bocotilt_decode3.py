@@ -10,7 +10,6 @@ import sklearn.model_selection
 import sklearn.metrics
 import sklearn.ensemble
 import scipy.signal
-import scipy.io
 import mne
 import time
 import imblearn
@@ -27,28 +26,18 @@ path_out = "/mnt/data_dump/bocotilt/3_decoded/"
 pruneframes = 100
 
 # Function performing random forest classification
-# Works only for 2 classes, y-data must be coded using 0 and 1
 def random_forest_classification(X, y, combined_codes):
-
-    # Condition differences in frequency x channel space
-    cond_dif = X[y == 0, :].mean(axis=0) - X[y == 1, :].mean(axis=0)
-
-    # Test statistics in frequency x channel space
-    t_values, p_values = scipy.stats.ttest_ind(X[y == 0, :], X[y == 1, :], axis=0)
-
-    # Calculate adjusted partial eta squared in frequency x channel space
-    df = np.min((X[y == 0, :].shape[0] - 1, X[y == 1, :].shape[0] - 1))
-    petasq = np.divide(np.square(t_values), (np.square(t_values) + df))
-    adjpetsq = petasq - np.multiply(1 - petasq, 1 / df)
 
     # Get dims
     n_trials, n_channel = X.shape
 
     # Oversampler
-    oversampler = imblearn.over_sampling.RandomOverSampler(sampling_strategy="minority")
+    oversampler = imblearn.over_sampling.RandomOverSampler(
+        sampling_strategy="not majority"
+    )
 
     # Init splitter
-    n_splits = 5
+    n_splits = 3
     kf = sklearn.model_selection.StratifiedKFold(n_splits=n_splits)
 
     # Init classifier
@@ -74,19 +63,19 @@ def random_forest_classification(X, y, combined_codes):
         X_train, X_test = X[idx_train, :], X[idx_test, :]
         y_train, y_test = y[idx_train], y[idx_test]
         cc_train = combined_codes[idx_train]
-        
+
         # Combine X and y for combined oversampling
-        Xy_train = np.hstack((X_train, y_train.reshape(-1,1)))
+        Xy_train = np.hstack((X_train, y_train.reshape(-1, 1)))
 
         # Oversample training data
         Xy_train, cc_oversampled = oversampler.fit_resample(Xy_train, cc_train)
 
         # Split X and y again
-        X_train, y_train = Xy_train[:, : -1], np.squeeze(Xy_train[:, -1 :])
-    
-        # Shuffle 
+        X_train, y_train = Xy_train[:, :-1], np.squeeze(Xy_train[:, -1:])
+
+        # Shuffle
         X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
-    
+
         # Fit model
         clf.fit(X_train, y_train)
 
@@ -111,7 +100,7 @@ def random_forest_classification(X, y, combined_codes):
     fmp_true = fmp_true / n_splits
     fmp_fake = fmp_fake / n_splits
 
-    return acc_true, acc_fake, fmp_true, fmp_fake, cond_dif, t_values, adjpetsq
+    return acc_true, acc_fake, fmp_true, fmp_fake
 
 
 # Function that calls the classifications
@@ -142,38 +131,105 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
     # 21: sequence_position
     # 22: sequence_length
 
+    # Define classifications to perform
+    clfs = []
+    clfs.append(
+        {
+            "label": "bonus vs standard trials",
+            "trial_idx": trialinfo[:, 0] > 0,
+            "y_col": 3,
+        }
+    )
+    clfs.append(
+        {
+            "label": "task in standard trials",
+            "trial_idx": trialinfo[:, 3] == 0,
+            "y_col": 4,
+        }
+    )
+    clfs.append(
+        {
+            "label": "task in bonus trials",
+            "trial_idx": trialinfo[:, 3] == 1,
+            "y_col": 4,
+        }
+    )
+    clfs.append(
+        {
+            "label": "task cue in standard trials",
+            "trial_idx": trialinfo[:, 3] == 0,
+            "y_col": 5,
+        }
+    )
+    clfs.append(
+        {
+            "label": "task cue in bonus trials",
+            "trial_idx": trialinfo[:, 3] == 1,
+            "y_col": 5,
+        }
+    )
+    clfs.append(
+        {
+            "label": "target in standard trials",
+            "trial_idx": trialinfo[:, 3] == 0,
+            "y_col": 19,
+        }
+    )
+    clfs.append(
+        {
+            "label": "target in bonus trials",
+            "trial_idx": trialinfo[:, 3] == 1,
+            "y_col": 19,
+        }
+    )
+    clfs.append(
+        {
+            "label": "distractor in standard trials",
+            "trial_idx": trialinfo[:, 3] == 0,
+            "y_col": 20,
+        }
+    )
+    clfs.append(
+        {
+            "label": "distractor in bonus trials",
+            "trial_idx": trialinfo[:, 3] == 1,
+            "y_col": 20,
+        }
+    )
+    clfs.append(
+        {
+            "label": "response in standard trials",
+            "trial_idx": trialinfo[:, 3] == 0,
+            "y_col": 11,
+        }
+    )
+    clfs.append(
+        {
+            "label": "response in bonus trials",
+            "trial_idx": trialinfo[:, 3] == 1,
+            "y_col": 11,
+        }
+    )
+
     # Decode labels
     decode_labels = []
 
     # Result matrices
-    n_models = 2
-    acc_true = np.zeros((n_models))
-    acc_fake = np.zeros((n_models))
-    fmp_true = np.zeros((n_models, X_all.shape[1]))
-    fmp_fake = np.zeros((n_models, X_all.shape[1]))
-    cond_dif = np.zeros((n_models, X_all.shape[1]))
-    t_values = np.zeros((n_models, X_all.shape[1]))
-    adjpetsq = np.zeros((n_models, X_all.shape[1]))
+    acc_true = np.zeros((len(clfs)))
+    acc_fake = np.zeros((len(clfs)))
+    fmp_true = np.zeros((len(clfs), X_all.shape[1]))
+    fmp_fake = np.zeros((len(clfs), X_all.shape[1]))
 
-    # 0. Decode standard vs bonus trials
-    model_nr = 0
-    decode_labels.append("bonus vs standard trials")
-    idx_selected = trialinfo[:, 0] > 0  # all trials for now...
-    X = X_all[idx_selected, :]
-    y = trialinfo[idx_selected, 3]
-    (
-        acc_true[model_nr],
-        acc_fake[model_nr],
-        fmp_true[model_nr, :],
-        fmp_fake[model_nr, :],
-        cond_dif[model_nr, :],
-        t_values[model_nr, :],
-        adjpetsq[model_nr, :],
-    ) = random_forest_classification(
-        X, y, combined_codes,
-    )
-
-
+    # Perform classifications
+    for model_nr, clf in enumerate(clfs):
+        X = X_all[clf["trial_idx"], :]
+        y = trialinfo[clf["trial_idx"], clf["y_col"]]
+        (
+            acc_true[model_nr],
+            acc_fake[model_nr],
+            fmp_true[model_nr, :],
+            fmp_fake[model_nr, :],
+        ) = random_forest_classification(X, y, combined_codes,)
 
     return {
         "decode_labels": decode_labels,
@@ -181,9 +237,6 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
         "acc_fake": acc_fake,
         "fmp_true": fmp_true,
         "fmp_fake": fmp_fake,
-        "cond_dif": cond_dif,
-        "t_values": t_values,
-        "adjpetsq": adjpetsq,
     }
 
 
@@ -205,32 +258,36 @@ for dataset_idx, dataset in enumerate(datasets):
     eeg_epochs = mne.io.read_epochs_eeglab(dataset).apply_baseline(baseline=(-0.2, 0))
 
     # Perform single trial time-frequency analysis
-    freqs = np.arange(2, 20)
+    tf_freqs = np.arange(2, 20)
     sfreq = 200
-    tf_epochs = mne.time_frequency.tfr_morlet(eeg_epochs, freqs, n_cycles=4.,
-                            average=False, return_itc=False, n_jobs=-2)
-    
+    tf_epochs = mne.time_frequency.tfr_morlet(
+        eeg_epochs, tf_freqs, n_cycles=4.0, average=False, return_itc=False, n_jobs=-2
+    )
+
     # Apply baseline procedure
-    tf_epochs.apply_baseline(mode='logratio', baseline=(-.100, 0))
+    tf_epochs.apply_baseline(mode="logratio", baseline=(-0.100, 0))
 
     # Prune in time
-    tf_times = tf_epochs.times[pruneframes : -pruneframes]
-    tf_data = tf_epochs.data[:, :, :, pruneframes : -pruneframes]
+    tf_times = tf_epochs.times[pruneframes:-pruneframes]
+    tf_data = tf_epochs.data[:, :, :, pruneframes:-pruneframes]
 
     # Load trialinfo
     trialinfo = np.genfromtxt(
         dataset.split("VP")[0] + "VP" + id_string + "_trialinfo.csv", delimiter=","
     )
-    
+
+    # Bin distractor and target positions (4 bins, c.f. https://www.nature.com/articles/s41598-019-45333-6)
+    trialinfo[:, 19] = np.floor((trialinfo[:, 19] - 1) / 2)
+    trialinfo[:, 20] = np.floor((trialinfo[:, 20] - 1) / 2)
 
     # Exclude non-valid switch-repetition trials and practice blocks
     idx_to_keep = (trialinfo[:, 9] >= 0) & (trialinfo[:, 1] >= 5)
     trialinfo = trialinfo[idx_to_keep, :]
     tf_data = tf_data[idx_to_keep, :, :, :]
-    
+
     # get dims
     n_trials, n_channels, n_freqs, n_times = tf_data.shape
-    
+
     # Trialinfo cols:
     #  0: id
     #  1: block_nr
@@ -242,15 +299,15 @@ for dataset_idx, dataset in enumerate(datasets):
     #  7: distractor_red_left  x
     #  8: response_interference  x
     #  9: task_switch  x
-    # 10: correct_response x
+    # 10: correct_response
     # 11: response_side
     # 12: rt
     # 13: accuracy
     # 14: log_response_side
     # 15: log_rt
     # 16: log_accuracy
-    # 17: position_color  x
-    # 18: position_tilt  x
+    # 17: position_color
+    # 18: position_tilt
     # 19: position_target   x
     # 20: position_distractor   x
     # 21: sequence_position
@@ -267,9 +324,6 @@ for dataset_idx, dataset in enumerate(datasets):
                 + str(int(trialinfo[x, 7]))
                 + str(int(trialinfo[x, 8]))
                 + str(int(trialinfo[x, 9]))
-                + str(int(trialinfo[x, 10]))
-                + str(int(trialinfo[x, 17]))
-                + str(int(trialinfo[x, 18]))
                 + str(int(trialinfo[x, 19]))
                 + str(int(trialinfo[x, 20]))
             )
@@ -283,12 +337,9 @@ for dataset_idx, dataset in enumerate(datasets):
 
         # Data as trials x channels x frequencies
         timepoint_data = tf_data[:, :, :, time_idx]
-        
+
         # Trials in rows
         timepoint_data_2d = timepoint_data.reshape((n_trials, n_channels * n_freqs))
-        
-        # Return function
-        # timepoint_data2 = timepoint_data_2d.reshape((n_trials, n_channels, n_freqs))
 
         # Stack data
         X_list.append(timepoint_data_2d)
@@ -297,8 +348,6 @@ for dataset_idx, dataset in enumerate(datasets):
     out = joblib.Parallel(n_jobs=-2)(
         joblib.delayed(decode_timeslice)(X, trialinfo, combined_codes) for X in X_list
     )
-    
-    aa=bb
 
     # Re-arrange data into arrays
     acc_true = np.stack([x["acc_true"] for x in out])
@@ -309,47 +358,28 @@ for dataset_idx, dataset in enumerate(datasets):
     # Get number of classifications performed
     n_clf = acc_true.shape[1]
 
+    # Reshape feature space data
+    fmp_true = fmp_true.reshape((n_times, n_clf, n_channels, n_freqs))
+    fmp_fake = fmp_fake.reshape((n_times, n_clf, n_channels, n_freqs))
+
     # Get decode labels
     decode_labels = out[0]["decode_labels"]
-
-    # Split feature importances into freqbands
-    fmp_true = np.split(fmp_true, 4, axis=2)
-    fmp_fake = np.split(fmp_fake, 4, axis=2)
-    fmp_true_delta = fmp_true[0]
-    fmp_fake_delta = fmp_fake[0]
-    fmp_true_theta = fmp_true[1]
-    fmp_fake_theta = fmp_fake[1]
-    fmp_true_alpha = fmp_true[2]
-    fmp_fake_alpha = fmp_fake[2]
-    fmp_true_beta = fmp_true[3]
-    fmp_fake_beta = fmp_fake[3]
 
     # Re-arrange decoding-results as classification-specific lists
     acc_true = [acc_true[:, i] for i in range(n_clf)]
     acc_fake = [acc_fake[:, i] for i in range(n_clf)]
-    fmp_true_delta = [fmp_true_delta[:, i, :] for i in range(n_clf)]
-    fmp_fake_delta = [fmp_fake_delta[:, i, :] for i in range(n_clf)]
-    fmp_true_theta = [fmp_true_theta[:, i, :] for i in range(n_clf)]
-    fmp_fake_theta = [fmp_fake_theta[:, i, :] for i in range(n_clf)]
-    fmp_true_alpha = [fmp_true_alpha[:, i, :] for i in range(n_clf)]
-    fmp_fake_alpha = [fmp_fake_alpha[:, i, :] for i in range(n_clf)]
-    fmp_true_beta = [fmp_true_beta[:, i, :] for i in range(n_clf)]
-    fmp_fake_beta = [fmp_fake_beta[:, i, :] for i in range(n_clf)]
+    fmp_true = [fmp_true[:, i, :, :] for i in range(n_clf)]
+    fmp_fake = [fmp_fake[:, i, :, :] for i in range(n_clf)]
 
     # Compile output
     output = {
         "decode_labels": decode_labels,
-        "eeg_times": eeg_times,
+        "tf_times": tf_times,
+        "tf_freqs": tf_freqs,
         "acc_true": acc_true,
         "acc_fake": acc_fake,
-        "fmp_true_delta": fmp_true_delta,
-        "fmp_fake_delta": fmp_fake_delta,
-        "fmp_true_theta": fmp_true_theta,
-        "fmp_fake_theta": fmp_fake_theta,
-        "fmp_true_alpha": fmp_true_alpha,
-        "fmp_fake_alpha": fmp_fake_alpha,
-        "fmp_true_beta": fmp_true_beta,
-        "fmp_fake_beta": fmp_fake_beta,
+        "fmp_true": fmp_true,
+        "fmp_fake": fmp_fake,
     }
 
     # Save
