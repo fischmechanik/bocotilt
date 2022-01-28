@@ -9,7 +9,6 @@ import numpy as np
 import sklearn.model_selection
 import sklearn.metrics
 import sklearn.ensemble
-import scipy.signal
 import mne
 import time
 import imblearn
@@ -21,9 +20,6 @@ os.environ["JOBLIB_TEMP_FOLDER"] = "/tmp"
 # Define paths
 path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
 path_out = "/mnt/data_dump/bocotilt/3_decoded/"
-
-# Define pruneframes (number of frames pruned at each side of epoch)
-pruneframes = 100
 
 # Function performing random forest classification
 def random_forest_classification(X, y, combined_codes):
@@ -200,14 +196,14 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
         {
             "label": "response in standard trials",
             "trial_idx": trialinfo[:, 3] == 0,
-            "y_col": 11,
+            "y_col": 14,
         }
     )
     clfs.append(
         {
             "label": "response in bonus trials",
             "trial_idx": trialinfo[:, 3] == 1,
-            "y_col": 11,
+            "y_col": 14,
         }
     )
 
@@ -222,14 +218,24 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
 
     # Perform classifications
     for model_nr, clf in enumerate(clfs):
+        
+        # Select features and labels
         X = X_all[clf["trial_idx"], :]
         y = trialinfo[clf["trial_idx"], clf["y_col"]]
+
+        # Count occurences because why not...
+        unique, counts = np.unique(y, return_counts=True)
+        print(
+            f"clf: '{clf['label']}' | n obs: {dict(zip(unique.astype('int'), counts))}"
+        )
+
+        # Train model 
         (
             acc_true[model_nr],
             acc_fake[model_nr],
             fmp_true[model_nr, :],
             fmp_fake[model_nr, :],
-        ) = random_forest_classification(X, y, combined_codes,)
+        ) = random_forest_classification(X, y, combined_codes)
 
     return {
         "decode_labels": decode_labels,
@@ -259,17 +265,29 @@ for dataset_idx, dataset in enumerate(datasets):
 
     # Perform single trial time-frequency analysis
     tf_freqs = np.arange(2, 20)
-    sfreq = 200
     tf_epochs = mne.time_frequency.tfr_morlet(
-        eeg_epochs, tf_freqs, n_cycles=4.0, average=False, return_itc=False, n_jobs=-2
+        eeg_epochs,
+        tf_freqs,
+        n_cycles=4.0,
+        average=False,
+        return_itc=False,
+        n_jobs=-2,
+        decim=2,
     )
 
     # Apply baseline procedure
     tf_epochs.apply_baseline(mode="logratio", baseline=(-0.100, 0))
+    
+    # Clean up
+    del eeg_epochs
 
     # Prune in time
+    pruneframes = 60
     tf_times = tf_epochs.times[pruneframes:-pruneframes]
     tf_data = tf_epochs.data[:, :, :, pruneframes:-pruneframes]
+    
+    # Clean up
+    del tf_epochs
 
     # Load trialinfo
     trialinfo = np.genfromtxt(
@@ -343,6 +361,9 @@ for dataset_idx, dataset in enumerate(datasets):
 
         # Stack data
         X_list.append(timepoint_data_2d)
+        
+    # Clean up
+    del tf_data
 
     # Fit random forest
     out = joblib.Parallel(n_jobs=-2)(
