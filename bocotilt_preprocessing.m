@@ -8,11 +8,11 @@ PATH_ICSET         = '/mnt/data_dump/bocotilt/1_icset/';
 PATH_AUTOCLEANED   = '/mnt/data_dump/bocotilt/2_autocleaned/';
 
 % Subjects
-subject_list = {'VP08', 'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP12'};
+subject_list = {'VP08', 'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP12', 'VP13'};
 
 % Test switch                  
 if true
-    subject_list = {'VP12'};
+    subject_list = {'VP13'};
 end
 
 % Init eeglab
@@ -31,6 +31,20 @@ for s = 1 : length(subject_list)
 
     % Load
     EEG = pop_loadbv(PATH_RAW, [subject, '.vhdr'], [], []);
+
+    % Repair subject 13 (first block start marker missing)
+    if id == 13
+        EEG = pop_editeventvals(EEG, 'insert',...
+                                {1, [], [], [], [], [], [], [], [], []},...
+                                'changefield', {1, 'latency', 0.5},...
+                                'changefield', {1, 'duration', 0.001},...
+                                'changefield', {1, 'channel', 0},...
+                                'changefield', {1, 'bvtime', []},...
+                                'changefield', {1, 'visible', []},...
+                                'changefield', {1, 'bvmknum', 3733},...
+                                'changefield', {1, 'type', 'S121'},...
+                                'changefield', {1, 'code', 'Stimulus'});
+    end
 
     % Fork response button channels
     RESPS = pop_select(EEG, 'channel', [65, 66]);

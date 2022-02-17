@@ -248,7 +248,6 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
 
 # Iterate preprocessed datasets
 datasets = glob.glob(f"{path_in}/*cleaned.set")
-list_failed = []
 for dataset_idx, dataset in enumerate(datasets):
 
     # Take time

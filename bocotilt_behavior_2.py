@@ -11,6 +11,10 @@ path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
 # Get datasets
 datasets = glob.glob(f"{path_in}/*_trialinfo.csv")
 
+# Remove subject 12
+datasets.remove(f"{path_in}VP12_trialinfo.csv");
+
+datasets
 # Read datasets
 data = []
 for dataset_idx, dataset in enumerate(datasets):
@@ -18,6 +22,9 @@ for dataset_idx, dataset in enumerate(datasets):
 
 # Stack data
 data = np.vstack(data)
+
+# Eclude the strange pos 9 trial
+data = np.delete(data, data[:, 21] == 9, axis=0)
 
 # Columns of data
 #  0: id
@@ -113,3 +120,27 @@ g = sns.catplot(
     data=df,
 )
 g.despine(left=True)
+
+
+
+
+
+
+
+# Draw a pointplot to show pulse as a function of three categorical factors
+g = sns.catplot(
+    x="task_switch",
+    y="log_rt",
+    hue="bonustrial",
+    col="cue_ax",
+    capsize=0.2,
+    palette="Dark2",
+    height=6,
+    aspect=0.75,
+    kind="point",
+    data=df,
+)
+g.despine(left=True)
+
+
+
