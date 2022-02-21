@@ -93,7 +93,7 @@ df = pd.DataFrame(data=data, columns=columns)
 # Draw rt
 g = sns.catplot(
     x="bonustrial",
-    y="log_rt",
+    y="rt",
     hue="id",
     col="task_switch",
     capsize=0.05,
@@ -109,7 +109,7 @@ g.despine(left=True)
 # Draw accuracy
 g = sns.catplot(
     x="bonustrial",
-    y="log_accuracy",
+    y="accuracy",
     hue="id",
     col="task_switch",
     capsize=0.05,
