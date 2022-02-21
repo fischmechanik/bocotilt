@@ -6,7 +6,7 @@ PATH_EEGLAB      = '/home/plkn/eeglab2021.1/';
 PATH_AUTOCLEANED = '/mnt/data_dump/bocotilt/2_autocleaned/';
 
 % Subject list
-subject_list = {'VP08', 'VP09', 'VP17', 'VP25'};
+subject_list = {'VP08', 'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13'};
 
 % Init eeglab
 addpath(PATH_EEGLAB);
@@ -56,9 +56,9 @@ for s = 1 : length(subject_list)
 
     % Get index of channel
     channel_idx = [];
-    channels = {'Fz', 'F1', 'F2', 'FC1', 'FCz', 'FC2', 'FFC1h', 'FFC2h'};
+    %channels = {'Fz', 'F1', 'F2', 'FC1', 'FCz', 'FC2', 'FFC1h', 'FFC2h'};
     %channels = {'Pz', 'POz', 'PPO1h', 'PPO2h'};
-    %channels = {'POz'};
+    channels = {'FCz'};
     for ch = 1 : length(channels)
         channel_idx(end + 1) = find(strcmp({EEG.chanlocs.labels}, channels{ch}));
     end
@@ -72,10 +72,10 @@ for s = 1 : length(subject_list)
     chan_data = chan_data - mean(chan_data(bl_idx, :));
 
     % Get indices of correct standard and bonus trials for repetition and switch trials
-    idx_std_rep = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 0 & trialinfo(:, 10) == 0;
-    idx_std_swi = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 0 & trialinfo(:, 10) == 1;
-    idx_bon_rep = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 1 & trialinfo(:, 10) == 0;
-    idx_bon_swi = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 1 & trialinfo(:, 10) == 1;
+    idx_std_rep = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 0 & trialinfo(:, 9) == 0;
+    idx_std_swi = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 0 & trialinfo(:, 9) == 1;
+    idx_bon_rep = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 1 & trialinfo(:, 9) == 0;
+    idx_bon_swi = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 1 & trialinfo(:, 9) == 1;
 
     % Calculate ERPs by averaging across trials within each condition combination
     erp_std_rep = mean(chan_data(:, idx_std_rep), 2);
@@ -118,7 +118,7 @@ hold on;
 plot(erp_times, grand_averages(2, :), ':', 'LineWidth', 2, 'Color', 'k');
 plot(erp_times, grand_averages(3, :), '-', 'LineWidth', 2, 'Color', 'r');
 plot(erp_times, grand_averages(4, :), ':', 'LineWidth', 2, 'Color', 'r');
-legend({'standard-repeat', 'standard-switch', 'bonus-repeat', 'bonus-switch'});
+legend({'standard-0', 'standard-1', 'bonus-0', 'bonus-1'});
 title(channels)
 xline(0);
 xline(800);

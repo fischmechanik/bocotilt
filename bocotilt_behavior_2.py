@@ -90,13 +90,13 @@ columns = [
 df = pd.DataFrame(data=data, columns=columns)
 
 
-# Draw a pointplot to show pulse as a function of three categorical factors
+# Draw rt
 g = sns.catplot(
-    x="sequence_position",
+    x="bonustrial",
     y="log_rt",
-    hue="bonustrial",
+    hue="id",
     col="task_switch",
-    capsize=0.2,
+    capsize=0.05,
     palette="Dark2",
     height=6,
     aspect=0.75,
@@ -106,13 +106,13 @@ g = sns.catplot(
 g.despine(left=True)
 
 
-# Draw a pointplot to show pulse as a function of three categorical factors
+# Draw accuracy
 g = sns.catplot(
-    x="sequence_position",
+    x="bonustrial",
     y="log_accuracy",
-    hue="bonustrial",
+    hue="id",
     col="task_switch",
-    capsize=0.2,
+    capsize=0.05,
     palette="Dark2",
     height=6,
     aspect=0.75,
@@ -120,27 +120,3 @@ g = sns.catplot(
     data=df,
 )
 g.despine(left=True)
-
-
-
-
-
-
-
-# Draw a pointplot to show pulse as a function of three categorical factors
-g = sns.catplot(
-    x="task_switch",
-    y="log_rt",
-    hue="bonustrial",
-    col="cue_ax",
-    capsize=0.2,
-    palette="Dark2",
-    height=6,
-    aspect=0.75,
-    kind="point",
-    data=df,
-)
-g.despine(left=True)
-
-
-
