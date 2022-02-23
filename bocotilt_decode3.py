@@ -5,6 +5,7 @@
 import glob
 import os
 import joblib
+from matplotlib.transforms import BboxBase
 import numpy as np
 import sklearn.model_selection
 import sklearn.metrics
@@ -218,7 +219,7 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
 
     # Perform classifications
     for model_nr, clf in enumerate(clfs):
-        
+
         # Select features and labels
         X = X_all[clf["trial_idx"], :]
         y = trialinfo[clf["trial_idx"], clf["y_col"]]
@@ -229,7 +230,7 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
             f"clf: '{clf['label']}' | n obs: {dict(zip(unique.astype('int'), counts))}"
         )
 
-        # Train model 
+        # Train model
         (
             acc_true[model_nr],
             acc_fake[model_nr],
@@ -263,7 +264,8 @@ for dataset_idx, dataset in enumerate(datasets):
     eeg_epochs = mne.io.read_epochs_eeglab(dataset).apply_baseline(baseline=(-0.2, 0))
 
     # Perform single trial time-frequency analysis
-    tf_freqs = np.arange(2, 20)
+    tf_freqs = np.linspace(4, 41, 25)
+    tf_cycles = np.linspace(3, 16, 25)
     tf_epochs = mne.time_frequency.tfr_morlet(
         eeg_epochs,
         tf_freqs,
@@ -276,7 +278,7 @@ for dataset_idx, dataset in enumerate(datasets):
 
     # Apply baseline procedure
     tf_epochs.apply_baseline(mode="logratio", baseline=(-0.100, 0))
-    
+
     # Clean up
     del eeg_epochs
 
@@ -284,7 +286,7 @@ for dataset_idx, dataset in enumerate(datasets):
     pruneframes = 60
     tf_times = tf_epochs.times[pruneframes:-pruneframes]
     tf_data = tf_epochs.data[:, :, :, pruneframes:-pruneframes]
-    
+
     # Clean up
     del tf_epochs
 
@@ -360,7 +362,7 @@ for dataset_idx, dataset in enumerate(datasets):
 
         # Stack data
         X_list.append(timepoint_data_2d)
-        
+
     # Clean up
     del tf_data
 
