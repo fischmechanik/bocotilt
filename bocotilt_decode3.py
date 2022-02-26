@@ -269,7 +269,7 @@ for dataset_idx, dataset in enumerate(datasets):
     tf_epochs = mne.time_frequency.tfr_morlet(
         eeg_epochs,
         tf_freqs,
-        n_cycles=4.0,
+        n_cycles=tf_cycles,
         average=False,
         return_itc=False,
         n_jobs=-2,
