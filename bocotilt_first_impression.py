@@ -19,7 +19,7 @@ path_in = "/mnt/data_dump/bocotilt/3_decoded/"
 datasets = glob.glob(f"{path_in}/*.joblib")
 
 # Smoothin factor
-smowin = 13
+smowin = 5
 
 # A smoothening function
 def moving_average(x, w=smowin):

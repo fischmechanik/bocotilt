@@ -2,8 +2,8 @@
 import glob
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
+import statsmodels.stats.anova
 
 # Paths
 path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
@@ -12,9 +12,8 @@ path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
 datasets = glob.glob(f"{path_in}/*_trialinfo.csv")
 
 # Remove subject 12
-datasets.remove(f"{path_in}VP12_trialinfo.csv");
+#datasets.remove(f"{path_in}VP12_trialinfo.csv");
 
-datasets
 # Read datasets
 data = []
 for dataset_idx, dataset in enumerate(datasets):
@@ -89,34 +88,100 @@ columns = [
 # Create df
 df = pd.DataFrame(data=data, columns=columns)
 
+# Get unit-condition averages
+df2 = df.groupby(["id", "bonustrial", "task_switch"], as_index=False)['log_rt', "log_accuracy"].mean()
+
 
 # Draw rt
 g = sns.catplot(
     x="bonustrial",
-    y="rt",
+    y="log_rt",
     hue="id",
     col="task_switch",
     capsize=0.05,
-    palette="Dark2",
+    palette="tab20",
     height=6,
     aspect=0.75,
     kind="point",
-    data=df,
+    data=df2,
 )
 g.despine(left=True)
 
+# Draw rt averages
+g = sns.catplot(
+    x="bonustrial",
+    y="log_rt",
+    hue="task_switch",
+    capsize=0.05,
+    palette="tab20",
+    height=6,
+    aspect=0.75,
+    kind="point",
+    data=df2,
+)
+g.despine(left=True)
 
 # Draw accuracy
 g = sns.catplot(
     x="bonustrial",
-    y="accuracy",
+    y="log_accuracy",
     hue="id",
     col="task_switch",
     capsize=0.05,
-    palette="Dark2",
+    palette="tab20",
     height=6,
     aspect=0.75,
     kind="point",
-    data=df,
+    data=df2,
 )
 g.despine(left=True)
+
+# Draw accuracy averages
+g = sns.catplot(
+    x="bonustrial",
+    y="log_accuracy",
+    hue="task_switch",
+    capsize=0.05,
+    palette="tab20",
+    height=6,
+    aspect=0.75,
+    kind="point",
+    data=df2,
+)
+g.despine(left=True)
+
+# DataFrame for statistics
+df3 = df.groupby(["id", "bonustrial", "task_switch", "sequence_position"], as_index=False)['log_rt', "log_accuracy"].mean()
+
+# Calculate anova rt
+anova_out = statsmodels.stats.anova.AnovaRM(data=df3, depvar="log_rt", subject="id", within=["bonustrial", "task_switch", "sequence_position"]).fit()
+print(anova_out)
+
+# Calculate anova accuracy
+anova_out = statsmodels.stats.anova.AnovaRM(data=df3, depvar="log_accuracy", subject="id", within=["bonustrial", "task_switch", "sequence_position"]).fit()
+print(anova_out)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

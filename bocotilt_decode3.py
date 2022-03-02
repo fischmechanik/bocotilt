@@ -250,15 +250,23 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
 # Iterate preprocessed datasets
 datasets = glob.glob(f"{path_in}/*cleaned.set")
 for dataset_idx, dataset in enumerate(datasets):
+    
+    # Get subject id as string
+    id_string = dataset.split("VP")[1][0:2]
+    
+    # Specify out file name
+    out_file = os.path.join(path_out, f"{id_string}_decoding_data.joblib")
+    
+    # Skip if file exists already
+    out_file = os.path.join(path_out, f"{id_string}_decoding_data.joblib")
+    if os.path.isfile(out_file):
+        continue
 
     # Take time
     tic = time.perf_counter()
 
     # Talk
     print(f"Decoding dataset {dataset_idx + 1} / {len(datasets)}.")
-
-    # Get subject
-    id_string = dataset.split("VP")[1][0:2]
 
     # Load eeg data
     eeg_epochs = mne.io.read_epochs_eeglab(dataset).apply_baseline(baseline=(-0.2, 0))
@@ -316,7 +324,7 @@ for dataset_idx, dataset in enumerate(datasets):
     #  5: cue_ax  x
     #  6: target_red_left  x
     #  7: distractor_red_left  x
-    #  8: response_interference  x
+    #  8: response_interference
     #  9: task_switch  x
     # 10: correct_response
     # 11: response_side
@@ -341,7 +349,6 @@ for dataset_idx, dataset in enumerate(datasets):
                 + str(int(trialinfo[x, 5]))
                 + str(int(trialinfo[x, 6]))
                 + str(int(trialinfo[x, 7]))
-                + str(int(trialinfo[x, 8]))
                 + str(int(trialinfo[x, 9]))
                 + str(int(trialinfo[x, 19]))
                 + str(int(trialinfo[x, 20]))
@@ -405,7 +412,6 @@ for dataset_idx, dataset in enumerate(datasets):
     }
 
     # Save
-    out_file = os.path.join(path_out, f"{id_string}_decoding_data.joblib")
     joblib.dump(output, out_file)
 
     # Take time
