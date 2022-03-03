@@ -11,9 +11,6 @@ path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
 # Get datasets
 datasets = glob.glob(f"{path_in}/*_trialinfo.csv")
 
-# Remove subject 12
-#datasets.remove(f"{path_in}VP12_trialinfo.csv");
-
 # Read datasets
 data = []
 for dataset_idx, dataset in enumerate(datasets):
@@ -53,10 +50,17 @@ data = np.delete(data, data[:, 21] == 9, axis=0)
 # Set sequence to non-defined if position 1
 data[data[:, 21] == 1, 9] = -1
 
+# Add binarized sequential positions
+binarized_seqpos = np.zeros((data.shape[0], 1)) - 1
+binarized_seqpos[data[:, 21] <= 3, 0] = 0
+binarized_seqpos[data[:, 21] >= 7, 0] = 1
+data = np.hstack((data, binarized_seqpos))
+
 # Remove non defined
 data = data[data[:, 16] != 2, :]
-data = data[data[:, 9] != -1, :]
+#data = data[data[:, 9] != -1, :]
 data = data[data[:, 1] > 4, :]
+data = data[data[:, 23] >= 0, :]
 
 # Define columns
 columns = [
@@ -83,50 +87,23 @@ columns = [
     "position_distractor",
     "sequence_position",
     "sequence_length",
+    "seqpos_binarized",
 ]
 
 # Create df
 df = pd.DataFrame(data=data, columns=columns)
 
 # Get unit-condition averages
-df2 = df.groupby(["id", "bonustrial", "task_switch"], as_index=False)['log_rt', "log_accuracy"].mean()
-
-
-# Draw rt
-g = sns.catplot(
-    x="bonustrial",
-    y="log_rt",
-    hue="id",
-    col="task_switch",
-    capsize=0.05,
-    palette="tab20",
-    height=6,
-    aspect=0.75,
-    kind="point",
-    data=df2,
-)
-g.despine(left=True)
+df2 = df.groupby(["id", "bonustrial", "seqpos_binarized"], as_index=False)[
+    "log_rt", "log_accuracy"
+].mean()
 
 # Draw rt averages
 g = sns.catplot(
     x="bonustrial",
     y="log_rt",
-    hue="task_switch",
-    capsize=0.05,
-    palette="tab20",
-    height=6,
-    aspect=0.75,
-    kind="point",
-    data=df2,
-)
-g.despine(left=True)
-
-# Draw accuracy
-g = sns.catplot(
-    x="bonustrial",
-    y="log_accuracy",
-    hue="id",
-    col="task_switch",
+    hue="seqpos_binarized",
+    #col = "task_switch",
     capsize=0.05,
     palette="tab20",
     height=6,
@@ -140,7 +117,8 @@ g.despine(left=True)
 g = sns.catplot(
     x="bonustrial",
     y="log_accuracy",
-    hue="task_switch",
+    hue="seqpos_binarized",
+    #col = "task_switch",
     capsize=0.05,
     palette="tab20",
     height=6,
@@ -151,37 +129,25 @@ g = sns.catplot(
 g.despine(left=True)
 
 # DataFrame for statistics
-df3 = df.groupby(["id", "bonustrial", "task_switch", "sequence_position"], as_index=False)['log_rt', "log_accuracy"].mean()
+df3 = df.groupby(
+    ["id", "bonustrial",  "seqpos_binarized"], as_index=False
+)["log_rt", "log_accuracy"].mean()
 
 # Calculate anova rt
-anova_out = statsmodels.stats.anova.AnovaRM(data=df3, depvar="log_rt", subject="id", within=["bonustrial", "task_switch", "sequence_position"]).fit()
+anova_out = statsmodels.stats.anova.AnovaRM(
+    data=df3,
+    depvar="log_rt",
+    subject="id",
+    within=["bonustrial", "seqpos_binarized"],
+).fit()
 print(anova_out)
 
 # Calculate anova accuracy
-anova_out = statsmodels.stats.anova.AnovaRM(data=df3, depvar="log_accuracy", subject="id", within=["bonustrial", "task_switch", "sequence_position"]).fit()
+anova_out = statsmodels.stats.anova.AnovaRM(
+    data=df3,
+    depvar="log_accuracy",
+    subject="id",
+    within=["bonustrial", "seqpos_binarized"],
+).fit()
 print(anova_out)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
