@@ -56,11 +56,17 @@ binarized_seqpos[data[:, 21] <= 3, 0] = 0
 binarized_seqpos[data[:, 21] >= 7, 0] = 1
 data = np.hstack((data, binarized_seqpos))
 
+# 23 seqpos_binarized
+
 # Remove non defined
-data = data[data[:, 16] != 2, :]
-#data = data[data[:, 9] != -1, :]
-data = data[data[:, 1] > 4, :]
-data = data[data[:, 23] >= 0, :]
+data = data[data[:, 16] != 2, :] # Remove missing resposes
+#data = data[data[:, 9] != -1, :] # Remove non-defined sequences
+data = data[data[:, 1] > 4, :] # Remove practice blocks
+#data = data[data[:, 23] >= 0, :] # Remove trials not belonging to bnarized sequence ranges
+
+# Seperate datasets for rt and accuracy analyses
+data_rt = data[data[:, 16] == 1, :] # Remove incorrect trials
+data_acc = data
 
 # Define columns
 columns = [
@@ -91,63 +97,88 @@ columns = [
 ]
 
 # Create df
-df = pd.DataFrame(data=data, columns=columns)
+df_acc = pd.DataFrame(data=data_acc, columns=columns)
+df_rt = pd.DataFrame(data=data_rt, columns=columns)
 
-# Get unit-condition averages
-df2 = df.groupby(["id", "bonustrial", "seqpos_binarized"], as_index=False)[
-    "log_rt", "log_accuracy"
-].mean()
+# Draw individual rt
+g = sns.catplot(
+    x="bonustrial",
+    y="log_rt",
+    hue="id",
+    capsize=0.05,
+    palette="tab20",
+    height=6,
+    aspect=0.75,
+    kind="point",
+    data=df_rt,
+)
+g.despine(left=True)
+
+# Sequential_position x bonus_trial for rt
+df_anova_rt = df_rt.groupby(
+    ["id", "bonustrial",  "sequence_position"], as_index=False
+)["log_rt"].mean()
+
+anova_out = statsmodels.stats.anova.AnovaRM(
+    data=df_anova_rt,
+    depvar="log_rt",
+    subject="id",
+    within=["bonustrial", "sequence_position"],
+).fit()
+print(anova_out)
 
 # Draw rt averages
 g = sns.catplot(
     x="bonustrial",
     y="log_rt",
-    hue="seqpos_binarized",
-    #col = "task_switch",
+    hue="sequence_position",
     capsize=0.05,
     palette="tab20",
     height=6,
     aspect=0.75,
     kind="point",
-    data=df2,
+    data=df_anova_rt,
 )
 g.despine(left=True)
 
-# Draw accuracy averages
+
+# Draw individual accuracies
 g = sns.catplot(
     x="bonustrial",
     y="log_accuracy",
-    hue="seqpos_binarized",
-    #col = "task_switch",
+    hue="id",
     capsize=0.05,
     palette="tab20",
     height=6,
     aspect=0.75,
     kind="point",
-    data=df2,
+    data=df_acc,
 )
 g.despine(left=True)
+ 
+# Sequential_position x bonus_trial for accuracies
+df_anova_acc = df_acc.groupby(
+    ["id", "bonustrial",  "sequence_position"], as_index=False
+)["log_accuracy"].mean()
 
-# DataFrame for statistics
-df3 = df.groupby(
-    ["id", "bonustrial",  "seqpos_binarized"], as_index=False
-)["log_rt", "log_accuracy"].mean()
-
-# Calculate anova rt
 anova_out = statsmodels.stats.anova.AnovaRM(
-    data=df3,
-    depvar="log_rt",
-    subject="id",
-    within=["bonustrial", "seqpos_binarized"],
-).fit()
-print(anova_out)
-
-# Calculate anova accuracy
-anova_out = statsmodels.stats.anova.AnovaRM(
-    data=df3,
+    data=df_anova_acc,
     depvar="log_accuracy",
     subject="id",
-    within=["bonustrial", "seqpos_binarized"],
+    within=["bonustrial", "sequence_position"],
 ).fit()
 print(anova_out)
 
+# Draw rt averages
+g = sns.catplot(
+    x="bonustrial",
+    y="log_accuracy",
+    hue="sequence_position",
+    capsize=0.05,
+    palette="tab20",
+    height=6,
+    aspect=0.75,
+    kind="point",
+    data=df_anova_acc,
+)
+g.despine(left=True)
