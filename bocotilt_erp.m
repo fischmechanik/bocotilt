@@ -72,10 +72,10 @@ for s = 1 : length(subject_list)
     chan_data = chan_data - mean(chan_data(bl_idx, :));
 
     % Get indices of correct standard and bonus trials for repetition and switch trials
-    idx_std_rep = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 0 & trialinfo(:, 9) == 0;
-    idx_std_swi = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 0 & trialinfo(:, 9) == 1;
-    idx_bon_rep = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 1 & trialinfo(:, 9) == 0;
-    idx_bon_swi = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 1 & trialinfo(:, 9) == 1;
+    idx_std_rep = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 0 & trialinfo(:, 10) == 0;
+    idx_std_swi = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 0 & trialinfo(:, 10) == 1;
+    idx_bon_rep = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 1 & trialinfo(:, 10) == 0;
+    idx_bon_swi = trialinfo(:, 17) == 1 & trialinfo(:, 2) > 4 & trialinfo(:, 4) == 1 & trialinfo(:, 10) == 1;
 
     % Calculate ERPs by averaging across trials within each condition combination
     erp_std_rep = mean(chan_data(:, idx_std_rep), 2);

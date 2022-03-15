@@ -8,11 +8,11 @@ PATH_ICSET         = '/mnt/data_dump/bocotilt/1_icset/';
 PATH_AUTOCLEANED   = '/mnt/data_dump/bocotilt/2_autocleaned/';
 
 % Subjects
-subject_list = {'VP08', 'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP12', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18', 'VP19', 'VP20'};
+subject_list = {'VP08', 'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP12', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18', 'VP19', 'VP20', 'VP21'};
 
 % Test switch                  
 if true
-    subject_list = {'VP20'};
+    subject_list = {'VP21'};
 end
 
 % Init eeglab
