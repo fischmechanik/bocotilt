@@ -5,7 +5,6 @@
 import glob
 import os
 import joblib
-from matplotlib.transforms import BboxBase
 import numpy as np
 import sklearn.model_selection
 import sklearn.metrics
