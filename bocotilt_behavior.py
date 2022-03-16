@@ -1,7 +1,9 @@
 # Imports
 import glob
 import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import statsmodels.stats.anova
 
 # Paths
 path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
@@ -14,13 +16,13 @@ data = []
 for dataset_idx, dataset in enumerate(datasets):
     data.append(np.genfromtxt(dataset, delimiter=","))
 
-# Get subject data
-dat = data[7]
+# Stack data
+data = np.vstack(data)
 
-# get id
-subject_id = int(dat[0, 0])
+# Eclude the strange pos 9 trial
+data = np.delete(data, data[:, 21] == 9, axis=0)
 
-# Columns of dat
+# Columns of data
 #  0: id
 #  1: block_nr
 #  2: trial_nr
@@ -45,523 +47,141 @@ subject_id = int(dat[0, 0])
 # 21: sequence_position
 # 22: sequence_length
 
-# Get RT
-col_rt = 15
-col_accuracy = 16
-col_blocknum = 1
-col_bonustrial = 3
-col_seqposition = 21
-bon_pos1_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 1)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
-std_pos1_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 1)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
-bon_pos2_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 2)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
-std_pos2_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 2)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
-bon_pos3_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 3)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
-std_pos3_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 3)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
-bon_pos4_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 4)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
-std_pos4_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 4)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
-bon_pos5_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 5)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
-std_pos5_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 5)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
-bon_pos6_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 6)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
-std_pos6_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 6)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
-bon_pos7_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 7)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
-std_pos7_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 7)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
-bon_pos8_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 8)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
-std_pos8_mean = np.nanmean(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 8)
-        & (dat[:, col_blocknum] > 4)
-        & (dat[:, col_accuracy] == 1),
-        col_rt,
-    ]
-)
+# Set sequence to non-defined if position 1
+data[data[:, 21] == 1, 9] = -1
 
-# Arange plotting data
-condition_labels = [
-    "pos1",
-    "pos2",
-    "pos3",
-    "pos4",
-    "pos5",
-    "pos6",
-    "pos7",
-    "pos8",
-]
-x_pos = np.arange(len(condition_labels))
-barwidth = 0.35
-bon_means = [
-    bon_pos1_mean,
-    bon_pos2_mean,
-    bon_pos3_mean,
-    bon_pos4_mean,
-    bon_pos5_mean,
-    bon_pos6_mean,
-    bon_pos7_mean,
-    bon_pos8_mean,
-]
-std_means = [
-    std_pos1_mean,
-    std_pos2_mean,
-    std_pos3_mean,
-    std_pos4_mean,
-    std_pos5_mean,
-    std_pos6_mean,
-    std_pos7_mean,
-    std_pos8_mean,
+# Add binarized sequential positions
+binarized_seqpos = np.zeros((data.shape[0], 1)) - 1
+binarized_seqpos[data[:, 21] <= 3, 0] = 0
+binarized_seqpos[data[:, 21] >= 7, 0] = 1
+data = np.hstack((data, binarized_seqpos))
+
+# 23 seqpos_binarized
+
+# Remove non defined
+data = data[data[:, 16] != 2, :] # Remove missing resposes
+#data = data[data[:, 9] != -1, :] # Remove non-defined sequences
+data = data[data[:, 1] > 4, :] # Remove practice blocks
+#data = data[data[:, 23] >= 0, :] # Remove trials not belonging to bnarized sequence ranges
+
+# Seperate datasets for rt and accuracy analyses
+data_rt = data[data[:, 16] == 1, :] # Remove incorrect trials
+data_acc = data
+
+# Define columns
+columns = [
+    "id",
+    "block_nr",
+    "trial_nr",
+    "bonustrial",
+    "tilt_task",
+    "cue_ax",
+    "target_red_left",
+    "distractor_red_left",
+    "response_interference",
+    "task_switch",
+    "correct_response",
+    "response_side",
+    "rt",
+    "accuracy",
+    "log_response_side",
+    "log_rt",
+    "log_accuracy",
+    "position_color",
+    "position_tilt",
+    "position_target",
+    "position_distractor",
+    "sequence_position",
+    "sequence_length",
+    "seqpos_binarized",
 ]
 
+# Create df
+df_acc = pd.DataFrame(data=data_acc, columns=columns)
+df_rt = pd.DataFrame(data=data_rt, columns=columns)
 
-# Build the plot
-fig, ax = plt.subplots(2, 1)
-rects1 = ax[0].bar(
-    x_pos - barwidth / 2, std_means, barwidth, label="standard", color="olive"
+# Draw individual rt
+g = sns.catplot(
+    x="bonustrial",
+    y="log_rt",
+    hue="id",
+    capsize=0.05,
+    palette="tab20",
+    height=6,
+    aspect=0.75,
+    kind="point",
+    data=df_rt,
 )
-rects2 = ax[0].bar(
-    x_pos + barwidth / 2, bon_means, barwidth, label="bonus", color="salmon"
+g.despine(left=True)
+
+# Sequential_position x bonus_trial for rt
+df_anova_rt = df_rt.groupby(
+    ["id", "bonustrial",  "sequence_position"], as_index=False
+)["log_rt"].mean()
+
+anova_out = statsmodels.stats.anova.AnovaRM(
+    data=df_anova_rt,
+    depvar="log_rt",
+    subject="id",
+    within=["bonustrial", "sequence_position"],
+).fit()
+print(anova_out)
+
+# Draw rt averages
+g = sns.catplot(
+    x="bonustrial",
+    y="log_rt",
+    hue="sequence_position",
+    capsize=0.05,
+    palette="tab20",
+    height=6,
+    aspect=0.75,
+    kind="point",
+    data=df_anova_rt,
 )
-ax[0].set_ylabel("ms")
-ax[0].set_ylim((0, 900))
-ax[0].set_xticks(x_pos)
-ax[0].set_xticklabels(condition_labels)
-ax[0].set_title(f"subject {subject_id} - RT")
-ax[0].yaxis.grid(True)
-ax[0].legend()
+g.despine(left=True)
 
-# Get accuracy
-bon_pos1_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 1)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 1)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
+
+# Draw individual accuracies
+g = sns.catplot(
+    x="bonustrial",
+    y="log_accuracy",
+    hue="id",
+    capsize=0.05,
+    palette="tab20",
+    height=6,
+    aspect=0.75,
+    kind="point",
+    data=df_acc,
 )
-std_pos1_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 1)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 1)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
+g.despine(left=True)
+ 
+# Sequential_position x bonus_trial for accuracies
+df_anova_acc = df_acc.groupby(
+    ["id", "bonustrial",  "sequence_position"], as_index=False
+)["log_accuracy"].mean()
+
+anova_out = statsmodels.stats.anova.AnovaRM(
+    data=df_anova_acc,
+    depvar="log_accuracy",
+    subject="id",
+    within=["bonustrial", "sequence_position"],
+).fit()
+print(anova_out)
+
+# Draw accuracy averages
+g = sns.catplot(
+    x="bonustrial",
+    y="log_accuracy",
+    hue="sequence_position",
+    capsize=0.05,
+    palette="tab20",
+    height=6,
+    aspect=0.75,
+    kind="point",
+    data=df_anova_acc,
 )
-bon_pos2_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 2)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 2)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-)
-std_pos2_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 2)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 2)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-)
-bon_pos3_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 3)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 3)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-)
-std_pos3_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 3)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 3)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-)
-bon_pos4_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 4)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 4)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-)
-std_pos4_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 4)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 4)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-)
-bon_pos5_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 5)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 5)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-)
-std_pos5_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 5)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 5)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-)
-bon_pos6_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 6)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 6)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-)
-std_pos6_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 6)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 6)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-)
-bon_pos7_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 7)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 7)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-)
-std_pos7_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 7)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 7)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-)
-bon_pos8_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 8)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 1)
-        & (dat[:, col_seqposition] == 8)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-)
-std_pos8_acc = sum(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 8)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-    == 1
-) / len(
-    dat[
-        (dat[:, col_bonustrial] == 0)
-        & (dat[:, col_seqposition] == 8)
-        & (dat[:, col_blocknum] > 4),
-        col_accuracy,
-    ]
-)
-
-# Arange plotting data
-barwidth = 0.35
-bon_acc = [
-    bon_pos1_acc,
-    bon_pos2_acc,
-    bon_pos3_acc,
-    bon_pos4_acc,
-    bon_pos5_acc,
-    bon_pos6_acc,
-    bon_pos7_acc,
-    bon_pos8_acc,
-]
-std_acc = [
-    std_pos1_acc,
-    std_pos2_acc,
-    std_pos3_acc,
-    std_pos4_acc,
-    std_pos5_acc,
-    std_pos6_acc,
-    std_pos7_acc,
-    std_pos8_acc,
-]
-
-# Build the plot
-rects1 = ax[1].bar(
-    x_pos - barwidth / 2, std_acc, barwidth, label="standard", color="olive"
-)
-rects2 = ax[1].bar(
-    x_pos + barwidth / 2, bon_acc, barwidth, label="bonus", color="salmon"
-)
-ax[1].set_ylabel("% correct")
-ax[1].set_ylim((0.3, 1))
-ax[1].set_xticks(x_pos)
-ax[1].set_xticklabels(condition_labels)
-ax[1].set_title("accuracy")
-ax[1].yaxis.grid(True)
-
-
-fig.tight_layout()
-plt.show()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+g.despine(left=True)
 
 
 
