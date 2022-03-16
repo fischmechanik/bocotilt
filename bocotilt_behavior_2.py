@@ -169,7 +169,7 @@ anova_out = statsmodels.stats.anova.AnovaRM(
 ).fit()
 print(anova_out)
 
-# Draw rt averages
+# Draw accuracy averages
 g = sns.catplot(
     x="bonustrial",
     y="log_accuracy",
@@ -182,3 +182,7 @@ g = sns.catplot(
     data=df_anova_acc,
 )
 g.despine(left=True)
+
+
+
+
