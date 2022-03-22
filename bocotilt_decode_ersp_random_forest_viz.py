@@ -19,7 +19,7 @@ path_in = "/mnt/data_dump/bocotilt/3_decoded/"
 datasets = glob.glob(f"{path_in}/*.joblib")
 
 # Smoothin factor
-smowin = 7
+smowin = 5
 
 # A smoothening function
 def moving_average(x, w=smowin):
@@ -44,32 +44,54 @@ for dataset in datasets:
 
     # Load dataset
     data = joblib.load(dataset)
+    
+    # Task decoding
+    ave_task_std.append(moving_average(data["acc_true"][0]))
+    ave_task_bon.append(moving_average(data["acc_true"][1]))
 
-    ave_bonus_true.append(moving_average(data["acc_true"][0]))
-    ave_bonus_fake.append(moving_average(data["acc_fake"][0]))
-    ave_task_std.append(moving_average(data["acc_true"][1]))
-    ave_task_bon.append(moving_average(data["acc_true"][2]))
-    ave_cue_std.append(moving_average(data["acc_true"][3]))
-    ave_cue_bon.append(moving_average(data["acc_true"][4]))
-    ave_target_std.append(moving_average(data["acc_true"][5]))
-    ave_target_bon.append(moving_average(data["acc_true"][6]))
-    ave_dist_std.append(moving_average(data["acc_true"][7]))
-    ave_dist_bon.append(moving_average(data["acc_true"][8]))
-    ave_resp_std.append(moving_average(data["acc_true"][9]))
-    ave_resp_bon.append(moving_average(data["acc_true"][10]))
+    # Bonus decoding
+    tmp1 = (data["acc_true"][2] + data["acc_true"][3]) / 2
+    tmp2 = (data["acc_fake"][2] + data["acc_fake"][3]) / 2
+    ave_bonus_true.append(moving_average(tmp1))
+    ave_bonus_fake.append(moving_average(tmp2))
+    
+    # Cue decoding
+    tmp1 = (data["acc_true"][4] + data["acc_true"][5]) / 2
+    tmp2 = (data["acc_true"][6] + data["acc_true"][7]) / 2
+    ave_cue_std.append(moving_average(tmp1))
+    ave_cue_bon.append(moving_average(tmp2))
+    
+    # Response decoding
+    tmp1 = (data["acc_true"][8] + data["acc_true"][9]) / 2
+    tmp2 = (data["acc_true"][10] + data["acc_true"][11]) / 2
+    ave_resp_std.append(moving_average(tmp1))
+    ave_resp_bon.append(moving_average(tmp2))
 
-ave_bonus_true = np.mean(ave_bonus_true, axis=0)
-ave_bonus_fake = np.mean(ave_bonus_fake, axis=0)
+    # Target decoding
+    tmp1 = (data["acc_true"][12] + data["acc_true"][13]) / 2
+    tmp2 = (data["acc_true"][14] + data["acc_true"][15]) / 2
+    ave_target_std.append(moving_average(tmp1))
+    ave_target_bon.append(moving_average(tmp2))
+    
+    # Distractor decoding
+    tmp1 = (data["acc_true"][16] + data["acc_true"][17]) / 2
+    tmp2 = (data["acc_true"][18] + data["acc_true"][19]) / 2
+    ave_dist_std.append(moving_average(tmp1))
+    ave_dist_bon.append(moving_average(tmp2))
+
 ave_task_std = np.mean(ave_task_std, axis=0)
 ave_task_bon = np.mean(ave_task_bon, axis=0)
+ave_bonus_true = np.mean(ave_bonus_true, axis=0)
+ave_bonus_fake = np.mean(ave_bonus_fake, axis=0)
 ave_cue_std = np.mean(ave_cue_std, axis=0)
 ave_cue_bon = np.mean(ave_cue_bon, axis=0)
+ave_resp_std = np.mean(ave_resp_std, axis=0)
+ave_resp_bon = np.mean(ave_resp_bon, axis=0)
 ave_target_std = np.mean(ave_target_std, axis=0)
 ave_target_bon = np.mean(ave_target_bon, axis=0)
 ave_dist_std = np.mean(ave_dist_std, axis=0)
 ave_dist_bon = np.mean(ave_dist_bon, axis=0)
-ave_resp_std = np.mean(ave_resp_std, axis=0)
-ave_resp_bon = np.mean(ave_resp_bon, axis=0)
+
 
 # Load dataset
 data = joblib.load(datasets[0])

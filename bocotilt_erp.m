@@ -6,7 +6,7 @@ PATH_EEGLAB      = '/home/plkn/eeglab2021.1/';
 PATH_AUTOCLEANED = '/mnt/data_dump/bocotilt/2_autocleaned/';
 
 % Subject list
-subject_list = {'VP08', 'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18', 'VP19', 'VP20', 'VP21', 'VP22'};
+subject_list = {'VP08', 'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18', 'VP19', 'VP20', 'VP21', 'VP22', 'VP23'};
 
 % Init eeglab
 addpath(PATH_EEGLAB);

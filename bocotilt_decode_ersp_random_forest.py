@@ -38,7 +38,7 @@ def random_forest_classification(X, y, combined_codes):
 
     # Init classifier
     clf = sklearn.ensemble.RandomForestClassifier(
-        n_estimators=100,
+        n_estimators=10,
         max_depth=None,
         min_samples_split=2,
         min_samples_leaf=1,
@@ -129,13 +129,8 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
 
     # Define classifications to perform
     clfs = []
-    clfs.append(
-        {
-            "label": "bonus vs standard trials",
-            "trial_idx": trialinfo[:, 0] > 0,
-            "y_col": 3,
-        }
-    )
+
+    # Task decoding
     clfs.append(
         {
             "label": "task in standard trials",
@@ -150,60 +145,140 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
             "y_col": 4,
         }
     )
+
+    # Bonus decoding
     clfs.append(
         {
-            "label": "task cue in standard trials",
-            "trial_idx": trialinfo[:, 3] == 0,
+            "label": "bonus vs standard trials in color",
+            "trial_idx": trialinfo[:, 4] == 0,
+            "y_col": 3,
+        }
+    )
+    clfs.append(
+        {
+            "label": "bonus vs standard trials in tilt",
+            "trial_idx": trialinfo[:, 4] == 1,
+            "y_col": 3,
+        }
+    )
+
+    # Cue decoding
+    clfs.append(
+        {
+            "label": "task cue in standard trials in color",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
             "y_col": 5,
         }
     )
     clfs.append(
         {
-            "label": "task cue in bonus trials",
-            "trial_idx": trialinfo[:, 3] == 1,
+            "label": "task cue in standard trials in tilt",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
             "y_col": 5,
         }
     )
     clfs.append(
         {
-            "label": "target in standard trials",
-            "trial_idx": trialinfo[:, 3] == 0,
-            "y_col": 19,
+            "label": "task cue in bonus trials in color",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
+            "y_col": 5,
         }
     )
     clfs.append(
         {
-            "label": "target in bonus trials",
-            "trial_idx": trialinfo[:, 3] == 1,
-            "y_col": 19,
+            "label": "task cue in bonus trials in tilt",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
+            "y_col": 5,
         }
     )
+
+    # Response decoding
     clfs.append(
         {
-            "label": "distractor in standard trials",
-            "trial_idx": trialinfo[:, 3] == 0,
-            "y_col": 20,
-        }
-    )
-    clfs.append(
-        {
-            "label": "distractor in bonus trials",
-            "trial_idx": trialinfo[:, 3] == 1,
-            "y_col": 20,
-        }
-    )
-    clfs.append(
-        {
-            "label": "response in standard trials",
-            "trial_idx": trialinfo[:, 3] == 0,
+            "label": "Response in standard trials in color",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
             "y_col": 14,
         }
     )
     clfs.append(
         {
-            "label": "response in bonus trials",
-            "trial_idx": trialinfo[:, 3] == 1,
+            "label": "Response in standard trials in tilt",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
             "y_col": 14,
+        }
+    )
+    clfs.append(
+        {
+            "label": "Response in bonus trials in color",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
+            "y_col": 14,
+        }
+    )
+    clfs.append(
+        {
+            "label": "Response in bonus trials in tilt",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
+            "y_col": 14,
+        }
+    )
+
+    # Target decoding
+    clfs.append(
+        {
+            "label": "Target in standard trials in color",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
+            "y_col": 19,
+        }
+    )
+    clfs.append(
+        {
+            "label": "Target in standard trials in tilt",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
+            "y_col": 19,
+        }
+    )
+    clfs.append(
+        {
+            "label": "Target in bonus trials in color",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
+            "y_col": 19,
+        }
+    )
+    clfs.append(
+        {
+            "label": "Target in bonus trials in tilt",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
+            "y_col": 19,
+        }
+    )
+
+    # Distractor decoding
+    clfs.append(
+        {
+            "label": "Distractor in standard trials in color",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
+            "y_col": 20,
+        }
+    )
+    clfs.append(
+        {
+            "label": "Distractor in standard trials in tilt",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
+            "y_col": 20,
+        }
+    )
+    clfs.append(
+        {
+            "label": "Distractor in bonus trials in color",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
+            "y_col": 20,
+        }
+    )
+    clfs.append(
+        {
+            "label": "Distractor in bonus trials in tilt",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
+            "y_col": 20,
         }
     )
 
@@ -219,6 +294,9 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
     # Perform classifications
     for model_nr, clf in enumerate(clfs):
 
+        # Append classification label
+        decode_labels.append(clf["label"])
+        
         # Select features and labels
         X = X_all[clf["trial_idx"], :]
         y = trialinfo[clf["trial_idx"], clf["y_col"]]
@@ -249,13 +327,13 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
 # Iterate preprocessed datasets
 datasets = glob.glob(f"{path_in}/*cleaned.set")
 for dataset_idx, dataset in enumerate(datasets):
-    
+
     # Get subject id as string
     id_string = dataset.split("VP")[1][0:2]
-    
+
     # Specify out file name
     out_file = os.path.join(path_out, f"{id_string}_decoding_data.joblib")
-    
+
     # Skip if file exists already
     out_file = os.path.join(path_out, f"{id_string}_decoding_data.joblib")
     if os.path.isfile(out_file):
@@ -271,8 +349,8 @@ for dataset_idx, dataset in enumerate(datasets):
     eeg_epochs = mne.io.read_epochs_eeglab(dataset).apply_baseline(baseline=(-0.2, 0))
 
     # Perform single trial time-frequency analysis
-    tf_freqs = np.linspace(4, 41, 25)
-    tf_cycles = np.linspace(3, 16, 25)
+    tf_freqs = np.linspace(2, 20, 6)
+    tf_cycles = np.linspace(3, 12, 6)
     tf_epochs = mne.time_frequency.tfr_morlet(
         eeg_epochs,
         tf_freqs,
@@ -302,12 +380,18 @@ for dataset_idx, dataset in enumerate(datasets):
         dataset.split("VP")[0] + "VP" + id_string + "_trialinfo.csv", delimiter=","
     )
 
-    # Bin distractor and target positions (4 bins, c.f. https://www.nature.com/articles/s41598-019-45333-6)
-    trialinfo[:, 19] = np.floor((trialinfo[:, 19] - 1) / 2)
-    trialinfo[:, 20] = np.floor((trialinfo[:, 20] - 1) / 2)
+    # Positions of target and distractor are coded  1-8, starting at the top-right position, then counting counter-clockwise
+    
+    # Recode distractor and target positions in 4 bins 0-3 (c.f. https://www.nature.com/articles/s41598-019-45333-6)
+    # trialinfo[:, 19] = np.floor((trialinfo[:, 19] - 1) / 2)
+    # trialinfo[:, 20] = np.floor((trialinfo[:, 20] - 1) / 2)
+    
+    # Recode distractor and target positions in 4 bins 0-1
+    trialinfo[:, 19] = np.floor((trialinfo[:, 19] - 1) / 4)
+    trialinfo[:, 20] = np.floor((trialinfo[:, 20] - 1) / 4)
 
-    # Exclude non-valid switch-repetition trials and practice blocks
-    idx_to_keep = (trialinfo[:, 9] >= 0) & (trialinfo[:, 1] >= 5)
+    # Exclude trials: Practice-block trials and incorrect trials
+    idx_to_keep = (trialinfo[:, 1] >= 5) & (trialinfo[:, 16] == 1)
     trialinfo = trialinfo[idx_to_keep, :]
     tf_data = tf_data[idx_to_keep, :, :, :]
 
@@ -321,15 +405,15 @@ for dataset_idx, dataset in enumerate(datasets):
     #  3: bonustrial  x
     #  4: tilt_task  x
     #  5: cue_ax  x
-    #  6: target_red_left  x
-    #  7: distractor_red_left  x
-    #  8: response_interference
-    #  9: task_switch  x
+    #  6: target_red_left
+    #  7: distractor_red_left
+    #  8: response_interference x
+    #  9: task_switch
     # 10: correct_response
     # 11: response_side
     # 12: rt
     # 13: accuracy
-    # 14: log_response_side
+    # 14: log_response_side x
     # 15: log_rt
     # 16: log_accuracy
     # 17: position_color
@@ -346,9 +430,8 @@ for dataset_idx, dataset in enumerate(datasets):
                 str(int(trialinfo[x, 3]))
                 + str(int(trialinfo[x, 4]))
                 + str(int(trialinfo[x, 5]))
-                + str(int(trialinfo[x, 6]))
-                + str(int(trialinfo[x, 7]))
-                + str(int(trialinfo[x, 9]))
+                + str(int(trialinfo[x, 8]))
+                + str(int(trialinfo[x, 14]))
                 + str(int(trialinfo[x, 19]))
                 + str(int(trialinfo[x, 20]))
             )

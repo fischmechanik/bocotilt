@@ -8,10 +8,10 @@ PATH_ICSET         = '/mnt/data_dump/bocotilt/1_icset/';
 PATH_AUTOCLEANED   = '/mnt/data_dump/bocotilt/2_autocleaned/';
 
 % Subjects
-subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18', 'VP19', 'VP20', 'VP21', 'VP22', 'VP23', 'VP08'};
+subject_list = {'VP08', 'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18', 'VP19', 'VP20', 'VP21', 'VP22', 'VP23'};
 
 % Test switch                  
-if false
+if true
     subject_list = {'VP23'};
 end
 
@@ -136,12 +136,19 @@ for s = 1 : length(subject_list)
     EEG.rejcont_regions = selected_regions;
 
     % Filter
-    ERP = pop_basicfilter(ERP, [1 : ERP.nbchan], 'Cutoff', [0.01, 40], 'Design', 'butter', 'Filter', 'bandpass', 'Order', 4, 'RemoveDC', 'on', 'Boundary', 'boundary'); 
-    EEG = pop_basicfilter(EEG, [1 : EEG.nbchan], 'Cutoff', [   1, 40], 'Design', 'butter', 'Filter', 'bandpass', 'Order', 4, 'RemoveDC', 'on', 'Boundary', 'boundary');
+    ERP = pop_basicfilter(ERP, [1 : ERP.nbchan], 'Cutoff', [0.01, 30], 'Design', 'butter', 'Filter', 'bandpass', 'Order', 4, 'RemoveDC', 'on', 'Boundary', 'boundary'); 
+    EEG = pop_basicfilter(EEG, [1 : EEG.nbchan], 'Cutoff', [1, 30], 'Design', 'butter', 'Filter', 'bandpass', 'Order', 4, 'RemoveDC', 'on', 'Boundary', 'boundary');
         
     % Bad channel detection
-    [ERP, ERP.chans_rejected] = pop_rejchan(ERP, 'elec', [1 : ERP.nbchan], 'threshold', 5, 'norm', 'on', 'measure', 'kurt');
-    [EEG, EEG.chans_rejected] = pop_rejchan(EEG, 'elec', [1 : EEG.nbchan], 'threshold', 5, 'norm', 'on', 'measure', 'kurt');
+    [ERP, i1] = pop_rejchan(ERP, 'elec', [1 : ERP.nbchan], 'threshold', 10, 'norm', 'on', 'measure', 'kurt');
+    [ERP, i2] = pop_rejchan(ERP, 'elec', [1 : ERP.nbchan], 'threshold', 5, 'norm', 'on', 'measure', 'prob');
+    ERP.chans_rejected = [i1, i2];
+    [EEG, i1] = pop_rejchan(EEG, 'elec', [1 : EEG.nbchan], 'threshold', 10, 'norm', 'on', 'measure', 'kurt');
+    [EEG, i2] = pop_rejchan(EEG, 'elec', [1 : EEG.nbchan], 'threshold', 5, 'norm', 'on', 'measure', 'prob');
+    EEG.chans_rejected = [i1, i2];
+
+    % Determine rank of data
+    dataRank = sum(eig(cov(double(EEG.data'))) > 1e-6); 
 
     % Interpolate channels
     ERP = pop_interp(ERP, ERP.chanlocs_original, 'spherical');
@@ -150,9 +157,6 @@ for s = 1 : length(subject_list)
     % Reref common average
     ERP = pop_reref(ERP, []);
     EEG = pop_reref(EEG, []);
-
-    % Determine rank of data
-    dataRank = sum(eig(cov(double(EEG.data'))) > 1e-6); 
 
     % Epoch data
     ERP = pop_epoch(ERP, {'trial'}, [-0.8, 2.6], 'newname', [subject '_epoched'], 'epochinfo', 'yes');
