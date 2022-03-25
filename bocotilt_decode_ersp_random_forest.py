@@ -38,7 +38,7 @@ def random_forest_classification(X, y, combined_codes):
 
     # Init classifier
     clf = sklearn.ensemble.RandomForestClassifier(
-        n_estimators=10,
+        n_estimators=100,
         max_depth=None,
         min_samples_split=2,
         min_samples_leaf=1,
@@ -349,8 +349,8 @@ for dataset_idx, dataset in enumerate(datasets):
     eeg_epochs = mne.io.read_epochs_eeglab(dataset).apply_baseline(baseline=(-0.2, 0))
 
     # Perform single trial time-frequency analysis
-    tf_freqs = np.linspace(2, 20, 6)
-    tf_cycles = np.linspace(3, 12, 6)
+    tf_freqs = np.linspace(2, 40, 30)
+    tf_cycles = np.linspace(3, 16, 30)
     tf_epochs = mne.time_frequency.tfr_morlet(
         eeg_epochs,
         tf_freqs,
@@ -368,7 +368,7 @@ for dataset_idx, dataset in enumerate(datasets):
     del eeg_epochs
 
     # Prune in time
-    pruneframes = 60
+    pruneframes = 40
     tf_times = tf_epochs.times[pruneframes:-pruneframes]
     tf_data = tf_epochs.data[:, :, :, pruneframes:-pruneframes]
 
@@ -407,7 +407,7 @@ for dataset_idx, dataset in enumerate(datasets):
     #  5: cue_ax  x
     #  6: target_red_left
     #  7: distractor_red_left
-    #  8: response_interference x
+    #  8: response_interference
     #  9: task_switch
     # 10: correct_response
     # 11: response_side
@@ -430,7 +430,6 @@ for dataset_idx, dataset in enumerate(datasets):
                 str(int(trialinfo[x, 3]))
                 + str(int(trialinfo[x, 4]))
                 + str(int(trialinfo[x, 5]))
-                + str(int(trialinfo[x, 8]))
                 + str(int(trialinfo[x, 14]))
                 + str(int(trialinfo[x, 19]))
                 + str(int(trialinfo[x, 20]))
