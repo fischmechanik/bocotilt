@@ -83,7 +83,7 @@ def random_forest_classification_binning(X, y, combined_codes):
         X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
 
         # Do some binning on test and training data
-        n_bin = 5
+        n_bin = 15
         n_bins_train = 300
         n_bins_test = 75
         X_train_0 = do_some_binning(X_train[y_train == 0, :], n_bin, n_bins_train)
