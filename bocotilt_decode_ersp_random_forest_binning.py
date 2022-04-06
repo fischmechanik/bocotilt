@@ -57,10 +57,9 @@ def random_forest_classification_binning(X, y, combined_codes):
     )
 
     # Arrays for results
-    acc_true = 0
-    fmp_true = np.zeros((n_channel))
-    acc_fake = 0
-    fmp_fake = np.zeros((n_channel))
+    acc = 0
+    auc = 0
+    fmp = np.zeros((n_channel))
 
     # Iterate splits
     for kidx, (idx_train, idx_test) in enumerate(kf.split(X, y)):
@@ -83,9 +82,9 @@ def random_forest_classification_binning(X, y, combined_codes):
         X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
 
         # Do some binning on test and training data
-        n_bin = 15
+        n_bin = 30
         n_bins_train = 300
-        n_bins_test = 75
+        n_bins_test = 100
         X_train_0 = do_some_binning(X_train[y_train == 0, :], n_bin, n_bins_train)
         X_train_1 = do_some_binning(X_train[y_train == 1, :], n_bin, n_bins_train)
         X_test_0 = do_some_binning(X_test[y_test == 0, :], n_bin, n_bins_test)
@@ -109,28 +108,19 @@ def random_forest_classification_binning(X, y, combined_codes):
         # Fit model
         clf.fit(X_train, y_train)
 
-        # Get accuracy and feature importances
-        acc_true = acc_true + sklearn.metrics.accuracy_score(
-            y_test, clf.predict(X_test)
+        # Get performance metricsand feature importances
+        acc = acc + sklearn.metrics.accuracy_score(y_test, clf.predict(X_test))
+        auc = auc + sklearn.metrics.roc_auc_score(
+            y_test, clf.predict(X_test), multi_class="ovo"
         )
-        fmp_true = fmp_true + clf.feature_importances_
-
-        # Fit null hypothesis model
-        clf.fit(X_train, np.random.permutation(y_train))
-
-        # Get null hypothesis accuracy and feature importances
-        acc_fake = acc_fake + sklearn.metrics.accuracy_score(
-            y_test, clf.predict(X_test)
-        )
-        fmp_fake = fmp_fake + clf.feature_importances_
+        fmp = fmp + clf.feature_importances_
 
     # Scale
-    acc_true = acc_true / n_splits
-    acc_fake = acc_fake / n_splits
-    fmp_true = fmp_true / n_splits
-    fmp_fake = fmp_fake / n_splits
+    acc = acc / n_splits
+    auc = auc / n_splits
+    fmp = fmp / n_splits
 
-    return acc_true, acc_fake, fmp_true, fmp_fake
+    return acc, auc, fmp
 
 
 # Function that calls the classifications
@@ -320,10 +310,9 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
     decode_labels = []
 
     # Result matrices
-    acc_true = np.zeros((len(clfs)))
-    acc_fake = np.zeros((len(clfs)))
-    fmp_true = np.zeros((len(clfs), X_all.shape[1]))
-    fmp_fake = np.zeros((len(clfs), X_all.shape[1]))
+    acc = np.zeros((len(clfs)))
+    auc = np.zeros((len(clfs)))
+    fmp = np.zeros((len(clfs), X_all.shape[1]))
 
     # Perform classifications
     for model_nr, clf in enumerate(clfs):
@@ -343,18 +332,16 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
 
         # Train model
         (
-            acc_true[model_nr],
-            acc_fake[model_nr],
-            fmp_true[model_nr, :],
-            fmp_fake[model_nr, :],
+            acc[model_nr],
+            auc[model_nr],
+            fmp[model_nr, :],
         ) = random_forest_classification_binning(X, y, combined_codes)
 
     return {
         "decode_labels": decode_labels,
-        "acc_true": acc_true,
-        "acc_fake": acc_fake,
-        "fmp_true": fmp_true,
-        "fmp_fake": fmp_fake,
+        "acc": acc_true,
+        "auc": acc_fake,
+        "fmp": fmp_true,
     }
 
 
@@ -494,36 +481,32 @@ for dataset_idx, dataset in enumerate(datasets):
     )
 
     # Re-arrange data into arrays
-    acc_true = np.stack([x["acc_true"] for x in out])
-    acc_fake = np.stack([x["acc_fake"] for x in out])
-    fmp_true = np.stack([x["fmp_true"] for x in out])
-    fmp_fake = np.stack([x["fmp_fake"] for x in out])
+    acc = np.stack([x["acc"] for x in out])
+    auc = np.stack([x["auc"] for x in out])
+    fmp = np.stack([x["fmp"] for x in out])
 
     # Get number of classifications performed
-    n_clf = acc_true.shape[1]
+    n_clf = acc.shape[1]
 
     # Reshape feature space data
-    fmp_true = fmp_true.reshape((n_times, n_clf, n_channels, n_freqs))
-    fmp_fake = fmp_fake.reshape((n_times, n_clf, n_channels, n_freqs))
+    fmp = fmp.reshape((n_times, n_clf, n_channels, n_freqs))
 
     # Get decode labels
     decode_labels = out[0]["decode_labels"]
 
     # Re-arrange decoding-results as classification-specific lists
-    acc_true = [acc_true[:, i] for i in range(n_clf)]
-    acc_fake = [acc_fake[:, i] for i in range(n_clf)]
-    fmp_true = [fmp_true[:, i, :, :] for i in range(n_clf)]
-    fmp_fake = [fmp_fake[:, i, :, :] for i in range(n_clf)]
+    acc = [acc[:, i] for i in range(n_clf)]
+    auc = [auc[:, i] for i in range(n_clf)]
+    fmp = [fmp[:, i, :, :] for i in range(n_clf)]
 
     # Compile output
     output = {
         "decode_labels": decode_labels,
         "tf_times": tf_times,
         "tf_freqs": tf_freqs,
-        "acc_true": acc_true,
-        "acc_fake": acc_fake,
-        "fmp_true": fmp_true,
-        "fmp_fake": fmp_fake,
+        "acc": acc,
+        "auc": auc,
+        "fmp": fmp,
     }
 
     # Save
