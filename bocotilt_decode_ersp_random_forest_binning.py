@@ -339,9 +339,9 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
 
     return {
         "decode_labels": decode_labels,
-        "acc": acc_true,
-        "auc": acc_fake,
-        "fmp": fmp_true,
+        "acc": acc,
+        "auc": auc,
+        "fmp": fmp,
     }
 
 

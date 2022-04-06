@@ -11,6 +11,7 @@ import joblib
 import glob
 import matplotlib.pyplot as plt
 import numpy as np
+import mne
 
 # Path decoding data
 path_in = "/mnt/data_dump/bocotilt/3_decoded/"
@@ -26,9 +27,65 @@ def moving_average(x, w=smowin):
     return np.convolve(x, np.ones(w), "valid") / w
 
 
+# A plotting and statistics function
+def plot_decoding_result(
+    data_cond_1,
+    condition2,
+    decode_label="title",
+    label_cond_1="cond1",
+    label_cond_2="cond2",
+    performance_measure="accuracy",
+    f_thresh=6.0,
+):
+
+    # Perform cluster-test
+    T_obs, clusters, cluster_p_values, H0 = mne.stats.permutation_cluster_test(
+        [data_cond_1, condition2],
+        n_permutations=1000,
+        threshold=f_thresh,
+        tail=1,
+        n_jobs=1,
+        out_type="mask",
+    )
+
+    # Create 2-axis figure
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 4))
+
+    # Set figure title
+    fig.suptitle(decode_label, fontsize=12)
+
+    # Plot classifier performance
+    ax1.plot(
+        times, data_cond_1.mean(axis=0), label=label_cond_1,
+    )
+    ax1.plot(
+        times, condition2.mean(axis=0), label=label_cond_2,
+    )
+    ax1.set_ylabel(performance_measure)
+    ax1.set_xlabel("time (s)")
+    ax1.legend()
+
+    # Plot statistics
+    for i_c, c in enumerate(clusters):
+        c = c[0]
+        if cluster_p_values[i_c] <= 0.05:
+            h = ax2.axvspan(times[c.start], times[c.stop - 1], color="g", alpha=0.3)
+        else:
+            ax2.axvspan(
+                times[c.start], times[c.stop - 1], color=(0.3, 0.3, 0.3), alpha=0.3
+            )
+
+    hf = plt.plot(times, T_obs, "m")
+    # ax2.legend((h,), ("cluster p-value < 0.05",))
+    ax2.set_xlabel("time (s)")
+    ax2.set_ylabel("f-values")
+
+    # Tight layout
+    fig.tight_layout()
+
+
 # Average across subjects
-ave_bonus_true = []
-ave_bonus_fake = []
+ave_bonus = []
 ave_task_std = []
 ave_task_bon = []
 ave_cue_std = []
@@ -40,107 +97,58 @@ ave_dist_bon = []
 ave_resp_std = []
 ave_resp_bon = []
 
+# read data
 for dataset in datasets:
 
     # Load dataset
     data = joblib.load(dataset)
-    
+
     # Task decoding
-    ave_task_std.append(moving_average(data["acc_true"][0]))
-    ave_task_bon.append(moving_average(data["acc_true"][1]))
+    ave_task_std.append(moving_average(data["auc"][0]))
+    ave_task_bon.append(moving_average(data["auc"][1]))
 
     # Bonus decoding
-    tmp1 = (data["acc_true"][2] + data["acc_true"][3]) / 2
-    tmp2 = (data["acc_fake"][2] + data["acc_fake"][3]) / 2
-    ave_bonus_true.append(moving_average(tmp1))
-    ave_bonus_fake.append(moving_average(tmp2))
-    
+    tmp1 = (data["auc"][2] + data["auc"][3]) / 2
+    ave_bonus.append(moving_average(tmp1))
+
     # Cue decoding
-    tmp1 = (data["acc_true"][4] + data["acc_true"][5]) / 2
-    tmp2 = (data["acc_true"][6] + data["acc_true"][7]) / 2
+    tmp1 = (data["auc"][4] + data["auc"][5]) / 2
+    tmp2 = (data["auc"][6] + data["auc"][7]) / 2
     ave_cue_std.append(moving_average(tmp1))
     ave_cue_bon.append(moving_average(tmp2))
-    
+
     # Response decoding
-    tmp1 = (data["acc_true"][8] + data["acc_true"][9]) / 2
-    tmp2 = (data["acc_true"][10] + data["acc_true"][11]) / 2
+    tmp1 = (data["auc"][8] + data["auc"][9]) / 2
+    tmp2 = (data["auc"][10] + data["auc"][11]) / 2
     ave_resp_std.append(moving_average(tmp1))
     ave_resp_bon.append(moving_average(tmp2))
 
     # Target decoding
-    tmp1 = (data["acc_true"][12] + data["acc_true"][13]) / 2
-    tmp2 = (data["acc_true"][14] + data["acc_true"][15]) / 2
+    tmp1 = (data["auc"][12] + data["auc"][13]) / 2
+    tmp2 = (data["auc"][14] + data["auc"][15]) / 2
     ave_target_std.append(moving_average(tmp1))
     ave_target_bon.append(moving_average(tmp2))
-    
+
     # Distractor decoding
-    tmp1 = (data["acc_true"][16] + data["acc_true"][17]) / 2
-    tmp2 = (data["acc_true"][18] + data["acc_true"][19]) / 2
+    tmp1 = (data["auc"][16] + data["auc"][17]) / 2
+    tmp2 = (data["auc"][18] + data["auc"][19]) / 2
     ave_dist_std.append(moving_average(tmp1))
     ave_dist_bon.append(moving_average(tmp2))
 
-ave_task_std = np.mean(ave_task_std, axis=0)
-ave_task_bon = np.mean(ave_task_bon, axis=0)
-ave_bonus_true = np.mean(ave_bonus_true, axis=0)
-ave_bonus_fake = np.mean(ave_bonus_fake, axis=0)
-ave_cue_std = np.mean(ave_cue_std, axis=0)
-ave_cue_bon = np.mean(ave_cue_bon, axis=0)
-ave_resp_std = np.mean(ave_resp_std, axis=0)
-ave_resp_bon = np.mean(ave_resp_bon, axis=0)
-ave_target_std = np.mean(ave_target_std, axis=0)
-ave_target_bon = np.mean(ave_target_bon, axis=0)
-ave_dist_std = np.mean(ave_dist_std, axis=0)
-ave_dist_bon = np.mean(ave_dist_bon, axis=0)
+# Adjust time vector to smoothing function
+times = data["tf_times"][smowin - 1 :]
 
+# get condition data
+condition1 = np.stack(ave_target_std)
+condition2 = np.stack(ave_target_bon)
 
-# Load dataset
-data = joblib.load(datasets[0])
+# Target position
+plot_decoding_result(
+    condition1,
+    condition2,
+    decode_label="target position",
+    label_cond_1="standard",
+    label_cond_2="bonus",
+    f_thresh=2.0,
+)
 
-# Crop times
-times = data["tf_times"]
-pruneframes = int(np.floor(smowin / 2))
-times = times[pruneframes:-pruneframes]
-
-# Bonus versus standard trials
-plt.subplot(231)
-plt.title("bonus versus standard")
-plt.plot(times, ave_bonus_true, label="observed", color="m")
-plt.plot(times, ave_bonus_fake, label="chance", color="c")
-# plt.legend()
-
-# Task decoding
-plt.subplot(232)
-plt.title("task set")
-plt.plot(times, ave_task_std, label="standard", color="c")
-plt.plot(times, ave_task_bon, label="bonus", color="m")
-# plt.legend()
-
-# Cue decoding
-plt.subplot(233)
-plt.title("cue (x vs. y)")
-plt.plot(times, ave_cue_std, label="standard", color="c")
-plt.plot(times, ave_cue_bon, label="bonus", color="m")
-# plt.legend()
-
-# Target decoding
-plt.subplot(234)
-plt.title("target position")
-plt.plot(times, ave_target_std, label="standard", color="c")
-plt.plot(times, ave_target_bon, label="bonus", color="m")
-# plt.legend()
-
-# Distractor decoding
-plt.subplot(235)
-plt.title("distractor position")
-plt.plot(times, ave_dist_std, label="standard", color="c")
-plt.plot(times, ave_dist_bon, label="bonus", color="m")
-# plt.legend()
-
-# Response decoding
-plt.subplot(236)
-plt.title("response side")
-plt.plot(times, ave_resp_std, label="standard", color="c")
-plt.plot(times, ave_resp_bon, label="bonus", color="m")
-# plt.legend()
-
-plt.tight_layout()
