@@ -60,9 +60,9 @@ data = np.hstack((data, binarized_seqpos))
 
 # Remove non defined
 data = data[data[:, 16] != 2, :] # Remove missing resposes
-data = data[data[:, 9] != -1, :] # Remove non-defined sequences
+#data = data[data[:, 9] != -1, :] # Remove non-defined sequences
 data = data[data[:, 1] > 4, :] # Remove practice blocks
-data = data[data[:, 23] >= 0, :] # Remove trials not belonging to bnarized sequence ranges
+#data = data[data[:, 23] >= 0, :] # Remove trials not belonging to bnarized sequence ranges
 
 # Seperate datasets for rt and accuracy analyses
 data_rt = data[data[:, 16] == 1, :] # Remove incorrect trials
@@ -118,14 +118,14 @@ g.despine(left=True)
 
 # Sequential_position x bonus_trial for rt
 df_anova_rt = df_rt.groupby(
-    ["id", "bonustrial",  "seqpos_binarized", "task_switch"], as_index=False
+     ["id", "bonustrial",  "sequence_position"], as_index=False
 )["log_rt"].mean()
 
 anova_out = statsmodels.stats.anova.AnovaRM(
     data=df_anova_rt,
     depvar="log_rt",
     subject="id",
-    within=["bonustrial", "seqpos_binarized", "task_switch"],
+    within=["bonustrial", "sequence_position"],
 ).fit()
 print(anova_out)
 
@@ -133,8 +133,7 @@ print(anova_out)
 g = sns.catplot(
     x="bonustrial",
     y="log_rt",
-    hue="seqpos_binarized",
-    col="task_switch",
+    hue="sequence_position",
     capsize=0.05,
     palette="tab20",
     height=6,

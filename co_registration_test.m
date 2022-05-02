@@ -19,7 +19,7 @@ head_surface = ft_read_headshape([PATH_EEGCAP_MODELS, subject, '/Model.obj']);
 head_surface = ft_convert_units(head_surface, 'mm');
 
 % Plot
-%ft_plot_mesh(head_surface);
+ft_plot_mesh(head_surface);
 
 % Manually select fiducial coordinates
 cfg = [];
@@ -49,7 +49,7 @@ load([PATH_WORKING_DIRECTORY, 'head_surface_fiducials_added.mat']);
 % Identify electrode positions
 cfg = [];
 cfg.method = 'headshape';
-cfg.channel = {'1'};
+cfg.channel = {'FCz', 'Cz', 'POz'};
 elec = ft_electrodeplacement(cfg, head_surface);
 
 
