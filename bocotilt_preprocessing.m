@@ -284,5 +284,13 @@ for s = 1 : length(subject_list)
     % Save clean data
     pop_saveset(ERP, 'filename', [subject, '_cleaned_erp.set'], 'filepath', PATH_AUTOCLEANED, 'check', 'on');
     pop_saveset(EEG, 'filename', [subject, '_cleaned.set'], 'filepath', PATH_AUTOCLEANED, 'check', 'on');
+
+    % Save channel label in order for creating 10-20 montage in mne
+    channel_labels = '';
+    for ch = 1 : EEG.nbchan
+        EEG.chanlocs(ch).labels
+        channel_labels = [channel_labels, ' ', EEG.chanlocs(ch).labels];
+    end
+    save([PATH_AUTOCLEANED, 'channel_labels.mat'], 'channel_labels');
     
 end

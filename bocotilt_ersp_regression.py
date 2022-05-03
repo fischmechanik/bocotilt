@@ -18,7 +18,8 @@ path_out = "/mnt/data_dump/bocotilt/5_regression/"
 datasets = glob.glob(f"{path_in}/*cleaned.set")
 
 # Init stuff
-linreg = sklearn.linear_model.LinearRegression()
+#linreg = sklearn.linear_model.LinearRegression()
+linreg = sklearn.linear_model.Ridge()
 scaler = sklearn.preprocessing.StandardScaler()
 
 # Loop datasets
@@ -74,8 +75,8 @@ for dataset_idx, dataset in enumerate(datasets):
     trialinfo = trialinfo[trialinfo[:, 1] > 4, :]
 
     # Perform single trial time-frequency analysis
-    tf_freqs = np.linspace(2, 20, 15)
-    tf_cycles = np.linspace(3, 12, 15)
+    tf_freqs = np.linspace(2, 16, 20)
+    tf_cycles = np.linspace(3, 12, 20)
     tf_epochs = mne.time_frequency.tfr_morlet(
         eeg_epochs,
         tf_freqs,
@@ -85,12 +86,12 @@ for dataset_idx, dataset in enumerate(datasets):
         n_jobs=-2,
         decim=2,
     )
-    
+
     # Apply baseline procedure
     tf_epochs.apply_baseline(mode="logratio", baseline=(-0.5, -0.2))
-    
+
     # Prune in time
-    pruneframes = (100, 100)
+    pruneframes = (50, 50)
     tf_times = tf_epochs.times[pruneframes[0] : -pruneframes[1]]
     tf_data = tf_epochs.data[:, :, :, pruneframes[0] : -pruneframes[1]]
 
@@ -102,6 +103,9 @@ for dataset_idx, dataset in enumerate(datasets):
 
     # Reshape data
     y = tf_data.reshape((n_trials, -1))
+    
+    # Scale
+    y = scaler.fit_transform(y)
 
     # Split standard and bonus trials
     idx_standard = trialinfo[:, 3] == 0
@@ -114,11 +118,15 @@ for dataset_idx, dataset in enumerate(datasets):
     # Fit regression models
     coef_standard = linreg.fit(X_standard, y_standard).coef_
     coef_bonus = linreg.fit(X_bonus, y_bonus).coef_
-    
+
     # Unpack and compile results
     res = {
-        "coef_standard_trialnum": coef_standard[:, 0].reshape((n_channels, n_freqs, n_times)),
-        "coef_standard_seqpos": coef_standard[:, 1].reshape((n_channels, n_freqs, n_times)),
+        "coef_standard_trialnum": coef_standard[:, 0].reshape(
+            (n_channels, n_freqs, n_times)
+        ),
+        "coef_standard_seqpos": coef_standard[:, 1].reshape(
+            (n_channels, n_freqs, n_times)
+        ),
         "coef_bonus_trialnum": coef_bonus[:, 0].reshape((n_channels, n_freqs, n_times)),
         "coef_bonus_seqpos": coef_bonus[:, 1].reshape((n_channels, n_freqs, n_times)),
     }
@@ -126,7 +134,7 @@ for dataset_idx, dataset in enumerate(datasets):
     # Save
     out_file = os.path.join(path_out, f"{id_string}_regression_data.joblib")
     joblib.dump(res, out_file)
-    
+
 # Save tf params
 out_file = os.path.join(path_out, "tf_times.joblib")
 joblib.dump(tf_times, out_file)
