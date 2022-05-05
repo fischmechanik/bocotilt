@@ -5,12 +5,14 @@
 import glob
 import mne
 import numpy as np
+import pandas as pd
 import itertools
-from cool_colormaps import cga_p1_dark as ccm
+import joblib
+import os
 
 # Define paths
 path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
-path_out = "/mnt/data_dump/bocotilt/5_regression/"
+path_out = "/mnt/data_dump/bocotilt/6_tf_analysis/"
 
 # Iterate preprocessed datasets
 datasets = glob.glob(f"{path_in}/*cleaned.set")
@@ -19,9 +21,7 @@ datasets = glob.glob(f"{path_in}/*cleaned.set")
 standard_montage = mne.channels.make_standard_montage("standard_1005")
 
 # Loop datasets
-power_list = []
-itc_list = []
-condition_labels = []
+tf_datasets = []
 for dataset_idx, dataset in enumerate(datasets):
 
     # Get subject id as string
@@ -35,67 +35,75 @@ for dataset_idx, dataset in enumerate(datasets):
     eeg_epochs.set_montage(standard_montage)
 
     # Load trialinfo
-    #  0: id
-    #  1: block_nr
-    #  2: trial_nr
-    #  3: bonustrial
-    #  4: tilt_task
-    #  5: cue_ax
-    #  6: target_red_left
-    #  7: distractor_red_left
-    #  8: response_interference
-    #  9: task_switch
-    # 10: correct_response
-    # 11: response_side
-    # 12: rt
-    # 13: accuracy
-    # 14: log_response_side
-    # 15: log_rt
-    # 16: log_accuracy
-    # 17: position_color
-    # 18: position_tilt
-    # 19: position_target
-    # 20: position_distractor
-    # 21: sequence_position
-    # 22: sequence_length
-    trialinfo = np.genfromtxt(
-        dataset.split("VP")[0] + "VP" + id_string + "_trialinfo.csv", delimiter=","
+    df_trialinfo = pd.read_csv(
+        dataset.split("VP")[0] + "VP" + id_string + "_trialinfo.csv", header=None
     )
+    df_trialinfo.columns = [
+        "id",
+        "block",
+        "trial_nr",
+        "bonus",
+        "tilt_task",
+        "cue_ax",
+        "target_red_left",
+        "distractor_red_left",
+        "response_interference",
+        "task_switch",
+        "correct_response",
+        "response_side",
+        "rt",
+        "accuracy",
+        "log_response_side",
+        "log_rt",
+        "log_accuracy",
+        "position_color",
+        "position_tilt",
+        "position_target",
+        "position_distractor",
+        "sequence_position",
+        "sequence_length",
+    ]
 
-    # Exclude practice blocks
-    eeg_epochs.drop(trialinfo[:, 1] <= 4)
-    trialinfo = trialinfo[trialinfo[:, 1] > 4, :]
+    # Remove practice trials and incorrect trials
+    idx_to_drop = (
+        (df_trialinfo["block"] <= 4) | (df_trialinfo["log_accuracy"] != 1)
+    ).to_numpy()
+    df_trialinfo = df_trialinfo.loc[np.invert(idx_to_drop), :]
+    eeg_epochs.drop(idx_to_drop)
 
-    # Define experimental factors and corresponding trialinfo column
-    factors = {"block": 1, "bonus": 3}
+    # Define experimental factors
+    factors = ["block", "bonus"]
+
+    # Get all factor levels
+    factor_levels = [list(df_trialinfo[f].unique()) for f in factors]
 
     # Get all factor level combinations
-    factor_levels = [np.unique(trialinfo[:, factors[f]]) for f in factors]
     factor_level_combinations = list(itertools.product(*factor_levels))
+
+    # Initialize result dict
+    tf_data = {
+        "factors": factors,
+        "levels": factor_level_combinations,
+        "power": [],
+        "itc": [],
+    }
 
     # Loop factor level combinations
     for comb in factor_level_combinations:
 
-        # A condition label
-        condition_label = ""
-        
-        # Loop factors and get boolean mask for epoch selection
-        bool_mask = np.ones((trialinfo.shape[0],), dtype=bool)
-        for factor_nr, level in enumerate(comb):
-
-            # Get key of factor
-            key = list(factors.keys())[factor_nr]
-            
-            # Update condition label
-            condition_label = condition_label + key + str(int(level)) + "_"
-
-            # Update bool mask
-            bool_mask = bool_mask & (trialinfo[:, factors[key]] == level)
-            
-        
+        # Boolean mask
+        boolean_mask = np.all(
+            np.stack(
+                [
+                    (df_trialinfo[f] == comb[f_idx]).to_numpy()
+                    for f_idx, f in enumerate(factors)
+                ]
+            ),
+            axis=0,
+        )
 
         # Select epochs
-        eeg_epochs_comb = eeg_epochs[bool_mask]
+        eeg_epochs_comb = eeg_epochs[boolean_mask]
 
         # Perform time-frequency analysis and apply baseline
         tf_freqs = np.linspace(2, 16, 20)
@@ -105,19 +113,19 @@ for dataset_idx, dataset in enumerate(datasets):
         )
         power.apply_baseline(mode="logratio", baseline=(-0.5, -0.2))
 
-    # Collect
-    power_list.append(power)
-    itc_list.append(itc)
+        # Collect across condition combinations
+        tf_data["power"].append(power)
+        tf_data["itc"].append(itc)
 
+    # Collect across subjects
+    tf_datasets.append(tf_data)
 
-# Grand averages
-ga = mne.grand_average(power_list)
+# Save
+factors_as_string = ""
+for f in factors:
+    factors_as_string = factors_as_string + "_" + f
 
+out_file = os.path.join(path_out, f"tf_datasets{factors_as_string}.joblib")
+joblib.dump(tf_datasets, out_file)
 
-# Plotty
-ga.plot_joint(
-    tmin=-0.5, tmax=2, timefreqs=[(0.5, 10), (1.1, 4)], cmap="PuOr", vmin=-0.3, vmax=0.3
-)
-
-aa = bb
 
