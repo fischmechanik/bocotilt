@@ -575,7 +575,7 @@ if ismember('part3', to_execute)
     [~, theta_peak_indices] = findpeaks(grand_average_theta);
 
     % Define width of the time window 
-    winwidth = 200;
+    winwidth = 100;
 
     % Determine time-windows aroud these peaks
     theta_window_1 = [tf_result.tf_time(theta_peak_indices(1)) - winwidth / 2, tf_result.tf_time(theta_peak_indices(1)) + winwidth / 2];
@@ -608,6 +608,11 @@ if ismember('part3', to_execute)
     end
 
     save([PATH_GED, 'theta_table.mat'], 'theta_table');
+
+
+    % prepare data for plots
+    load([PATH_GED, 'ged_result_', subject, '.mat']);
+
 
 
 end % End part3

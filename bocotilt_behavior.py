@@ -299,10 +299,10 @@ anova_out = statsmodels.stats.anova.AnovaRM(
 print(anova_out)
 
 g = sns.catplot(
-    x="tot",
+    x="switch",
     y="theta2",
     hue="bonus",
-    col="switch",
+    col="tot",
     capsize=0.05,
     palette="tab20",
     height=6,
