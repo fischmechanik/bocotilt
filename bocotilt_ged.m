@@ -409,8 +409,8 @@ if ismember('part2', to_execute)
     tf_result.template_topo = template_topo;
     tf_result.tf_freqs = tf_freqs;
     tf_result.fwhmTs = fwhmTs;
-    tf_result.tf_data = {};
-    tf_result.tf_data_cond_bl = {};
+    tf_result.ersp = {};
+    tf_result.itpc = {};
     tf_result.subjects = {};
 
     % Loop subjects
@@ -450,7 +450,7 @@ if ismember('part2', to_execute)
         tf_result.cmp_topo = result.ged_maps(chosen_cmp, :);
 
         % Get component signal
-        cmp_time_series = squeeze(result.ged_time_series (chosen_cmp, :, :));
+        cmp_time_series = squeeze(result.ged_time_series(chosen_cmp, :, :));
 
         % tf decomp of component
         convlen = size(cmp_time_series, 1) * size(cmp_time_series, 2) + size(cmw, 2) - 1;
@@ -464,53 +464,81 @@ if ismember('part2', to_execute)
 
         % Get TF-power
         powcube = NaN(length(tf_freqs), size(cmp_time_series, 1), size(cmp_time_series, 2));
+        phacube = NaN(length(tf_freqs), size(cmp_time_series, 1), size(cmp_time_series, 2));
         tmp = fft(reshape(double(cmp_time_series), 1, []), convlen);
         for f = 1 : length(tf_freqs)
             as = ifft(cmwX(f, :) .* tmp); 
             as = as(((size(cmw, 2) - 1) / 2) + 1 : end - ((size(cmw, 2) - 1) / 2));
             as = reshape(as, size(cmp_time_series, 1), size(cmp_time_series, 2));
-            powcube(f, :, :) = abs(as) .^ 2;          
+            powcube(f, :, :) = abs(as) .^ 2;
+            phacube(f, :, :) = exp(1i * angle(as));     
         end
 
         % Cut edges
         powcube = powcube(:, dsearchn(result.times', -500) : dsearchn(result.times', 2000), :);
+        phacube = phacube(:, dsearchn(result.times', -500) : dsearchn(result.times', 2000), :);
         prune_time = result.times(dsearchn(result.times', -500) : dsearchn(result.times', 2000));
         tf_result.tf_time = prune_time;
 
         % Get condition general baseline values
         bl_idx = prune_time >= -500 & prune_time <= -200;
 
-        % Calc blvals
-        tmp = squeeze(mean(powcube, 3));
-        blvals = squeeze(mean(tmp(:, bl_idx), 2));
+        % Determine minimal number of trials
+        min_n = inf;
+        for tot = 1 : 2
+            for bon = 1 : 2
+                for swi = 1 : 2
+                    tmp = sum(result.trialinfo(:, 24) == tot - 1 & result.trialinfo(:, 4) == bon - 1 & result.trialinfo(:, 10) == swi - 1);
+                    if tmp < min_n
+                        min_n = tmp;
+                    end
+                end
+            end
+        end
 
-        % Calculate ersp for conditions
-        ersps = zeros(2, 2, 2, size(powcube, 1), size(powcube, 2));
-        ersps_cond_bl = zeros(2, 2, 2, size(powcube, 1), size(powcube, 2));
+        % Calculate averages for conditions
+        ersp = zeros(2, 2, 2, size(powcube, 1), size(powcube, 2));
+        itpc = zeros(2, 2, 2, size(powcube, 1), size(powcube, 2));
+        rts = zeros(2, 2, 2);
+        accuracies = zeros(2, 2, 2);
         for tot = 1 : 2
             for bon = 1 : 2
                 for swi = 1 : 2
 
                     % Get trial idx
-                    trial_idx = result.trialinfo(:, 24) == tot - 1 & result.trialinfo(:, 4) == bon - 1 & result.trialinfo(:, 10) == swi - 1;
+                    trial_idx = find(result.trialinfo(:, 24) == tot - 1 & result.trialinfo(:, 4) == bon - 1 & result.trialinfo(:, 10) == swi - 1);
 
-                    % Get condition mean
-                    condition_mean = squeeze(mean(powcube(:, :, trial_idx), 3));
+                    % Draw sample
+                    trial_idx_itpc = randsample(trial_idx, min_n);
 
-                    % Get ersp
-                    ersps(tot, bon, swi, :, :) = 10 * log10(bsxfun(@rdivide, condition_mean, blvals));
+                    % Get condition mean of power
+                    condition_mean_power = squeeze(mean(powcube(:, :, trial_idx), 3));
 
-                    % Get condition specific baseline ersp
-                    blvals_condition = squeeze(mean(condition_mean(:, bl_idx), 2));
-                    ersps_cond_bl(tot, bon, swi, :, :) = 10 * log10(bsxfun(@rdivide, condition_mean, blvals_condition));
+                    % Get condition specific baseline
+                    blvals_condition = squeeze(mean(condition_mean_power(:, bl_idx), 2));
+
+                    % Calculate ersp
+                    ersp(tot, bon, swi, :, :) = 10 * log10(bsxfun(@rdivide, condition_mean_power, blvals_condition));
+                    
+                    % Calculate itpc
+                    itpc(tot, bon, swi, :, :) = abs(squeeze(mean(phacube(:, :, trial_idx_itpc), 3)));
+
+                    % Calculate behavioral measures
+                    idx_correct = find(result.trialinfo(:, 17) == 1 & result.trialinfo(:, 24) == tot - 1 & result.trialinfo(:, 4) == bon - 1 & result.trialinfo(:, 10) == swi - 1);
+                    idx_incorrect = find(result.trialinfo(:, 17) == 0 & result.trialinfo(:, 24) == tot - 1 & result.trialinfo(:, 4) == bon - 1 & result.trialinfo(:, 10) == swi - 1);
+                    idx_omission = find(result.trialinfo(:, 17) == 2 & result.trialinfo(:, 24) == tot - 1 & result.trialinfo(:, 4) == bon - 1 & result.trialinfo(:, 10) == swi - 1);
   
+                    rts(tot, bon, swi) = mean(result.trialinfo(idx_correct, 16));
+                    accuracies(tot, bon, swi) = length(idx_correct) / length(trial_idx);
                 end
             end
         end
 
         % Copy to results
-        tf_result.tf_data{end + 1} = ersps;
-        tf_result.tf_data_cond_bl{end + 1} = ersps_cond_bl;
+        tf_result.ersp{end + 1} = ersp;
+        tf_result.itpc{end + 1} = itpc;
+        tf_result.rts = rts;
+        tf_result.accuracies = accuracies;
 
     end % End subject loop
 
@@ -526,27 +554,39 @@ if ismember('part3', to_execute)
     load([PATH_GED, 'tf_results.mat']);
 
     % Concatenate tf data. Dims: tot, bonus, switch, freqs, times, subjects
-    tf_data = cat(6, tf_result.tf_data_cond_bl{:});
+    ersps = cat(6, tf_result.ersp{:});
+    itpcs = cat(6, tf_result.itpc{:});
 
     % Matrix for theta traces
-    theta_traces = [];
+    theta_ersp_traces = [];
+    theta_itpc_traces = [];
 
     % Plot ersp and calculate theta traces
+    tot_labels = {'start', 'end'};
+    bonus_labels = {'std', 'bonus'};
+    switch_labels = {'repeat', 'switch'};
     figure()
     counter = 0;
     for tot = 1 : 2
         for bon = 1 : 2
             for swi = 1 : 2
 
+
                 counter = counter + 1;
 
                 % Plot data
-                pd = squeeze(mean(squeeze(tf_data(tot, bon, swi, :, :, :)), 3));
+                pd_ersp = squeeze(mean(squeeze(ersps(tot, bon, swi, :, :, :)), 3));
+                pd_itpc = squeeze(mean(squeeze(itpcs(tot, bon, swi, :, :, :)), 3));
 
-                subplot(2, 4, counter)
-                contourf(tf_result.tf_time, tf_result.tf_freqs, pd, 40, 'linecolor','none')
+                subplot(4, 4, counter)
+                contourf(tf_result.tf_time, tf_result.tf_freqs, pd_ersp, 40, 'linecolor','none')
                 colormap('jet')
                 set(gca, 'clim', [-3, 3], 'YScale', 'lin', 'YTick', [4, 8, 12, 20])
+
+                subplot(4, 4, counter + 8)
+                contourf(tf_result.tf_time, tf_result.tf_freqs, pd_itpc, 40, 'linecolor','none')
+                colormap('jet')
+                set(gca, 'clim', [-0.25, 0.25], 'YScale', 'lin', 'YTick', [4, 8, 12, 20])
 
          
                 titlestring = ['tot: ', num2str(tot), ' - bon: ', num2str(bon), ' - swi: ', num2str(swi)];
@@ -555,31 +595,56 @@ if ismember('part3', to_execute)
 
                 % get theta_trace
                 theta_idx = tf_result.tf_freqs >= 4 & tf_result.tf_freqs <= 8;
-                theta_traces(counter, :) = mean(pd(theta_idx, :), 1);
+                theta_ersp_traces(counter, :) = mean(pd_ersp(theta_idx, :), 1);
+                theta_itpc_traces(counter, :) = mean(pd_itpc(theta_idx, :), 1);
+
+                % Save ersp
+                fn = ['ersp_', tot_labels{tot}, '_', bonus_labels{bon}, '_', switch_labels{swi}, '.csv'];
+                dlmwrite([PATH_GED, fn], pd_ersp);
+
+                % Save itpc
+                fn = ['itpc_', tot_labels{tot}, '_', bonus_labels{bon}, '_', switch_labels{swi}, '.csv'];
+                dlmwrite([PATH_GED, fn], pd_itpc);
             end
         end
     end
 
-    % Save theta traces
-    dlmwrite([PATH_GED, 'theta_traces.csv'], theta_traces);
+    % Save theta ersp traces
+    dlmwrite([PATH_GED, 'theta_ersp_traces.csv'], theta_ersp_traces);
+    dlmwrite([PATH_GED, 'theta_itpc_traces.csv'], theta_itpc_traces);
     dlmwrite([PATH_GED, 'theta_traces_times.csv'], tf_result.tf_time);
 
     % Calculate the grand-average theta-time-series
-    grand_average_theta = mean(theta_traces, 1);
+    grand_average_theta_ersp = mean(theta_ersp_traces, 1);
+    grand_average_theta_itpc = mean(theta_itpc_traces, 1);
 
     % Pop up plot of peaks in the theta grand-average
-    figure()
-    findpeaks(grand_average_theta)
+    %figure()
+    %findpeaks(grand_average_theta_ersp)
+
+    %figure()
+    %findpeaks(grand_average_theta_itpc)
 
     % Save peak indices.
-    [~, theta_peak_indices] = findpeaks(grand_average_theta);
+    [peakamps_ersp, theta_peak_indices_ersp] = findpeaks(grand_average_theta_ersp);
+    [peakamps_itpc, theta_peak_indices_itpc] = findpeaks(grand_average_theta_itpc, 'MinPeakDistance', 10);
 
-    % Define width of the time window 
-    winwidth = 100;
+    % Reduce itpc peaks to large amplitudes
+    theta_peak_indices_itpc = theta_peak_indices_itpc(peakamps_itpc > 0.15);
 
-    % Determine time-windows aroud these peaks
-    theta_window_1 = [tf_result.tf_time(theta_peak_indices(1)) - winwidth / 2, tf_result.tf_time(theta_peak_indices(1)) + winwidth / 2];
-    theta_window_2 = [tf_result.tf_time(theta_peak_indices(2)) - winwidth / 2, tf_result.tf_time(theta_peak_indices(2)) + winwidth / 2]; 
+    % Define width of the ersp time window 
+    winwidth_ersp = 100;
+
+    % Determine time-windows around peaks
+    theta_window_ersp_1 = [tf_result.tf_time(theta_peak_indices_ersp(1)) - winwidth_ersp / 2, tf_result.tf_time(theta_peak_indices_ersp(1)) + winwidth_ersp / 2];
+    theta_window_ersp_2 = [tf_result.tf_time(theta_peak_indices_ersp(2)) - winwidth_ersp / 2, tf_result.tf_time(theta_peak_indices_ersp(2)) + winwidth_ersp / 2]; 
+
+    % Define width of the itpc time window 
+    winwidth_itpc = 100;
+
+    % Determine time-windows around peaks
+    theta_window_itpc_1 = [tf_result.tf_time(theta_peak_indices_itpc(1)) - winwidth_itpc / 2, tf_result.tf_time(theta_peak_indices_itpc(1)) + winwidth_itpc / 2];
+    theta_window_itpc_2 = [tf_result.tf_time(theta_peak_indices_itpc(2)) - winwidth_itpc / 2, tf_result.tf_time(theta_peak_indices_itpc(2)) + winwidth_itpc / 2]; 
 
     % Iterate subjects and conditions again and parameterize theta
     theta_table = [];
@@ -591,16 +656,24 @@ if ismember('part3', to_execute)
         
                     counter = counter + 1;
 
-                    % Get time idx
-                    time_idx_win_1 = tf_result.tf_time >= theta_window_1(1) & tf_result.tf_time <= theta_window_1(2);
-                    time_idx_win_2 = tf_result.tf_time >= theta_window_2(1) & tf_result.tf_time <= theta_window_2(2);
+                    % Get time idx for ersp
+                    time_idx_win_1 = tf_result.tf_time >= theta_window_ersp_1(1) & tf_result.tf_time <= theta_window_ersp_1(2);
+                    time_idx_win_2 = tf_result.tf_time >= theta_window_ersp_2(1) & tf_result.tf_time <= theta_window_ersp_2(2);
 
-                    % get averages
-                    th1 = mean2(tf_data(tot, bon, swi, theta_idx, time_idx_win_1, s));
-                    th2 = mean2(tf_data(tot, bon, swi, theta_idx, time_idx_win_2, s));
+                    % get averages for ersp
+                    th1 = mean2(ersps(tot, bon, swi, theta_idx, time_idx_win_1, s));
+                    th2 = mean2(ersps(tot, bon, swi, theta_idx, time_idx_win_2, s));
+
+                    % Get time idx for itpc
+                    time_idx_win_1 = tf_result.tf_time >= theta_window_itpc_1(1) & tf_result.tf_time <= theta_window_itpc_1(2);
+                    time_idx_win_2 = tf_result.tf_time >= theta_window_itpc_2(1) & tf_result.tf_time <= theta_window_itpc_2(2);
+
+                    % get averages for itpc
+                    th3 = mean2(itpcs(tot, bon, swi, theta_idx, time_idx_win_1, s));
+                    th4 = mean2(itpcs(tot, bon, swi, theta_idx, time_idx_win_2, s));
 
                     % Collect
-                    theta_table(counter, :) = [s, tot, bon, swi, th1, th2];
+                    theta_table(counter, :) = [s, tot, bon, swi, th1, th2, th3, th4, tf_result.rts(tot, bon, swi), tf_result.accuracies(tot, bon, swi)];
 
                 end
             end
@@ -608,11 +681,7 @@ if ismember('part3', to_execute)
     end
 
     save([PATH_GED, 'theta_table.mat'], 'theta_table');
-
-
-    % prepare data for plots
-    load([PATH_GED, 'ged_result_', subject, '.mat']);
-
+    
 
 
 end % End part3

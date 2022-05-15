@@ -121,7 +121,7 @@ columns = [
 df_root = pd.DataFrame(data=data, columns=columns)
 
 # Select variables to consider
-factors = ["block_nr", "bonustrial", "task_switch"]
+factors = ["blockpos_binarized", "bonustrial", "task_switch"]
 
 # Calculate rates of correct responses, incorrect responses and omissions
 df_rates = df_root.groupby(
@@ -264,12 +264,12 @@ data_theta = scipy.io.loadmat(os.path.join(path_theta, "theta_table.mat"))["thet
 
 
 # Create df
-columns_theta = ["id", "tot", "bonus", "switch", "theta1", "theta2"]
+columns_theta = ["id", "tot", "bonus", "switch", "ersp_win_1", "ersp_win_2", "itpc_win_1", "itpc_win_2", "rt", "acc"]
 df_theta = pd.DataFrame(data=data_theta, columns=columns_theta)
 
 anova_out = statsmodels.stats.anova.AnovaRM(
     data=df_theta,
-    depvar="theta1",
+    depvar="ersp_win_1",
     subject="id",
     within=["tot", "bonus", "switch"],
 ).fit()
@@ -277,7 +277,7 @@ print(anova_out)
 
 g = sns.catplot(
     x="tot",
-    y="theta1",
+    y="ersp_win_1",
     hue="bonus",
     col="switch",
     capsize=0.05,
@@ -292,7 +292,7 @@ g.despine(left=True)
 
 anova_out = statsmodels.stats.anova.AnovaRM(
     data=df_theta,
-    depvar="theta2",
+    depvar="ersp_win_2",
     subject="id",
     within=["tot", "bonus", "switch"],
 ).fit()
@@ -300,7 +300,7 @@ print(anova_out)
 
 g = sns.catplot(
     x="switch",
-    y="theta2",
+    y="ersp_win_2",
     hue="bonus",
     col="tot",
     capsize=0.05,
@@ -314,8 +314,96 @@ g.despine(left=True)
 
 
 
+anova_out = statsmodels.stats.anova.AnovaRM(
+    data=df_theta,
+    depvar="itpc_win_1",
+    subject="id",
+    within=["tot", "bonus", "switch"],
+).fit()
+print(anova_out)
+
+g = sns.catplot(
+    x="tot",
+    y="itpc_win_1",
+    hue="bonus",
+    col="switch",
+    capsize=0.05,
+    palette="tab20",
+    height=6,
+    aspect=0.75,
+    kind="point",
+    data=df_theta,
+)
+g.despine(left=True)
 
 
+anova_out = statsmodels.stats.anova.AnovaRM(
+    data=df_theta,
+    depvar="itpc_win_2",
+    subject="id",
+    within=["tot", "bonus", "switch"],
+).fit()
+print(anova_out)
+
+g = sns.catplot(
+    x="switch",
+    y="itpc_win_2",
+    hue="bonus",
+    col="tot",
+    capsize=0.05,
+    palette="tab20",
+    height=6,
+    aspect=0.75,
+    kind="point",
+    data=df_theta,
+)
+g.despine(left=True)
+
+
+anova_out = statsmodels.stats.anova.AnovaRM(
+    data=df_theta,
+    depvar="rt",
+    subject="id",
+    within=["tot", "bonus", "switch"],
+).fit()
+print(anova_out)
+
+g = sns.catplot(
+    x="tot",
+    y="rt",
+    hue="bonus",
+    col="switch",
+    capsize=0.05,
+    palette="tab20",
+    height=6,
+    aspect=0.75,
+    kind="point",
+    data=df_theta,
+)
+g.despine(left=True)
+
+
+anova_out = statsmodels.stats.anova.AnovaRM(
+    data=df_theta,
+    depvar="acc",
+    subject="id",
+    within=["tot", "bonus", "switch"],
+).fit()
+print(anova_out)
+
+g = sns.catplot(
+    x="switch",
+    y="acc",
+    hue="bonus",
+    col="tot",
+    capsize=0.05,
+    palette="tab20",
+    height=6,
+    aspect=0.75,
+    kind="point",
+    data=df_theta,
+)
+g.despine(left=True)
 
 
 
