@@ -9,9 +9,9 @@ import statsmodels.formula.api as smf
 import os
 
 # Paths
-path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
-path_theta = "/mnt/data_dump/bocotilt/7_ged/"
-path_veusz = "/mnt/data_dump/bocotilt/"
+path_in = "/home/plkn/bocotilt_ged/2_autocleaned/"
+path_theta = "/home/plkn/bocotilt_ged/7_ged/"
+path_veusz = "/home/plkn/bocotilt_ged/"
 
 # Get datasets
 datasets = glob.glob(f"{path_in}/*_trialinfo.csv")
@@ -19,7 +19,7 @@ datasets = glob.glob(f"{path_in}/*_trialinfo.csv")
 # Read datasets
 data = []
 for dataset_idx, dataset in enumerate(datasets):
-    
+
     # Skip excluded
     if not (int(dataset[-16:-14]) in [10, 28]):
         data.append(np.genfromtxt(dataset, delimiter=","))
@@ -74,14 +74,14 @@ data = np.hstack((data, binarized_blockpos))
 # 23 seqpos_binarized
 
 # Remove non defined
-data = data[data[:, 16] != 2, :] # Remove missing resposes
+data = data[data[:, 16] != 2, :]  # Remove missing resposes
 data = data[data[:, 1] > 4, :]  # Remove practice blocks
 
 
-data = data[data[:, 9] != -1, :] # Remove non-defined sequences
+data = data[data[:, 9] != -1, :]  # Remove non-defined sequences
 
-#data = data[data[:, 23] >= 0, :] # Remove trials not belonging to bnarized sequence ranges
-data = data[data[:, 24] >= 0, :] # Remove trials not belonging to bnarized block ranges
+# data = data[data[:, 23] >= 0, :] # Remove trials not belonging to bnarized sequence ranges
+data = data[data[:, 24] >= 0, :]  # Remove trials not belonging to bnarized block ranges
 
 # Define columns
 columns = [
@@ -121,17 +121,17 @@ df_root = pd.DataFrame(data=data, columns=columns)
 factors = ["blockpos_binarized", "bonustrial", "task_switch"]
 
 # Calculate rates of correct responses, incorrect responses and omissions
-df_rates = df_root.groupby(
-    ["id"] + factors, as_index=False
-).log_accuracy.value_counts(normalize=True)
+df_rates = df_root.groupby(["id"] + factors, as_index=False).log_accuracy.value_counts(
+    normalize=True
+)
 
 # Create a dara frame for response times using only correct responses
 df_behavior = pd.DataFrame(data=data[data[:, 16] == 1, :], columns=columns)
 
 # Calculate rates of correct responses, incorrect responses and omissions
-df_behavior_grouped = df_behavior.groupby(
-   ["id"] + factors, as_index=False
-)["log_rt"].mean()
+df_behavior_grouped = df_behavior.groupby(["id"] + factors, as_index=False)[
+    "log_rt"
+].mean()
 
 # Iterate rows
 incorrect = []
@@ -157,12 +157,12 @@ for index, row in df_behavior_grouped.iterrows():
     if df[df["log_accuracy"] == 1]["proportion"].to_numpy().size:
         correct.append(df[df["log_accuracy"] == 1]["proportion"].to_numpy()[0])
     else:
-        correct.append(0)  
+        correct.append(0)
     if df[df["log_accuracy"] == 2]["proportion"].to_numpy().size:
         omission.append(df[df["log_accuracy"] == 2]["proportion"].to_numpy()[0])
     else:
         omission.append(0)
-        
+
     if (row["bonustrial"] == 0) & (row["task_switch"] == 0):
         swibon.append(0)
     if (row["bonustrial"] == 0) & (row["task_switch"] == 1):
@@ -173,15 +173,15 @@ for index, row in df_behavior_grouped.iterrows():
         swibon.append(3)
 
 # Add columns
-df_behavior_grouped["incorrect"] = incorrect 
-df_behavior_grouped["correct"] = correct 
-df_behavior_grouped["omission"] = omission 
-df_behavior_grouped["swibon"] = swibon 
+df_behavior_grouped["incorrect"] = incorrect
+df_behavior_grouped["correct"] = correct
+df_behavior_grouped["omission"] = omission
+df_behavior_grouped["swibon"] = swibon
 
 # Group for anova
-df_anova = df_behavior_grouped.groupby(
-    ["id"] + factors, as_index=False
-)[["log_rt", "correct"]].mean()
+df_anova = df_behavior_grouped.groupby(["id"] + factors, as_index=False)[
+    ["log_rt", "correct"]
+].mean()
 
 # RT analysis ===================================================================================
 
@@ -201,16 +201,15 @@ g = sns.catplot(
 g.despine(left=True)
 
 anova_out = statsmodels.stats.anova.AnovaRM(
-    data=df_anova,
-    depvar="log_rt",
-    subject="id",
-    within=factors,
+    data=df_anova, depvar="log_rt", subject="id", within=factors,
 ).fit()
 print(anova_out)
 
-df_start_only = df_anova[df_anova["blockpos_binarized"] == 0].groupby(
-    ["id", "bonustrial", "task_switch"], as_index=False
-)[["log_rt", "correct"]].mean()
+df_start_only = (
+    df_anova[df_anova["blockpos_binarized"] == 0]
+    .groupby(["id", "bonustrial", "task_switch"], as_index=False)[["log_rt", "correct"]]
+    .mean()
+)
 
 anova_out = statsmodels.stats.anova.AnovaRM(
     data=df_start_only,
@@ -220,9 +219,11 @@ anova_out = statsmodels.stats.anova.AnovaRM(
 ).fit()
 print(anova_out)
 
-df_end_only = df_anova[df_anova["blockpos_binarized"] == 1].groupby(
-    ["id", "bonustrial", "task_switch"], as_index=False
-)[["log_rt", "correct"]].mean()
+df_end_only = (
+    df_anova[df_anova["blockpos_binarized"] == 1]
+    .groupby(["id", "bonustrial", "task_switch"], as_index=False)[["log_rt", "correct"]]
+    .mean()
+)
 
 anova_out = statsmodels.stats.anova.AnovaRM(
     data=df_end_only,
@@ -238,19 +239,23 @@ for tot in [0, 1]:
     row_counter = -1
     for bon in [0, 1]:
         for swi in [0, 1]:
-            
+
             row_counter += 1
-            
-            idx = (df_anova["blockpos_binarized"] == tot) & (df_anova["bonustrial"] == bon) & (df_anova["task_switch"] == swi)
+
+            idx = (
+                (df_anova["blockpos_binarized"] == tot)
+                & (df_anova["bonustrial"] == bon)
+                & (df_anova["task_switch"] == swi)
+            )
             rts = df_anova["log_rt"][idx].to_numpy()
             rt_m = rts.mean()
             rt_std = rts.std()
-            
+
             col_offset = tot * 2
-            
+
             veusz_rt[row_counter, col_offset] = rt_m
             veusz_rt[row_counter, col_offset + 1] = rt_std
-            
+
 np.savetxt(f"{path_veusz}veusz_rt.csv", veusz_rt, delimiter="\t")
 
 np.savetxt(f"{path_veusz}xax.csv", [1, 2, 3, 4], delimiter="\t")
@@ -273,10 +278,7 @@ g = sns.catplot(
 g.despine(left=True)
 
 anova_out = statsmodels.stats.anova.AnovaRM(
-    data=df_anova,
-    depvar="correct",
-    subject="id",
-    within=factors,
+    data=df_anova, depvar="correct", subject="id", within=factors,
 ).fit()
 print(anova_out)
 
@@ -286,22 +288,25 @@ for tot in [0, 1]:
     row_counter = -1
     for bon in [0, 1]:
         for swi in [0, 1]:
-            
+
             row_counter += 1
-            
-            idx = (df_anova["blockpos_binarized"] == tot) & (df_anova["bonustrial"] == bon) & (df_anova["task_switch"] == swi)
+
+            idx = (
+                (df_anova["blockpos_binarized"] == tot)
+                & (df_anova["bonustrial"] == bon)
+                & (df_anova["task_switch"] == swi)
+            )
             acc_values = df_anova["correct"][idx].to_numpy()
             acc_m = acc_values.mean()
             acc_std = acc_values.std()
-            
+
             col_offset = tot * 2
-            
+
             veusz_accuracy[row_counter, col_offset] = acc_m
             veusz_accuracy[row_counter, col_offset + 1] = acc_std
-            
+
 np.savetxt(f"{path_veusz}veusz_accuracy.csv", veusz_accuracy, delimiter="\t")
-            
-            
+
 
 # LME analysis ===================================================================================
 
@@ -333,10 +338,23 @@ np.savetxt(f"{path_veusz}veusz_accuracy.csv", veusz_accuracy, delimiter="\t")
 
 
 # Load theta table
-data_theta = scipy.io.loadmat(os.path.join(path_theta, "theta_table.mat"))["theta_table"]
+data_theta = scipy.io.loadmat(os.path.join(path_theta, "theta_table.mat"))[
+    "theta_table"
+]
 
 # Create df
-columns_theta = ["id", "tot", "bonus", "switch", "ersp_win_1", "ersp_win_2", "itpc_win_1", "itpc_win_2", "rt", "acc"]
+columns_theta = [
+    "id",
+    "tot",
+    "bonus",
+    "switch",
+    "ersp_win_1",
+    "ersp_win_2",
+    "itpc_win_1",
+    "itpc_win_2",
+    "rt",
+    "acc",
+]
 df_theta = pd.DataFrame(data=data_theta, columns=columns_theta)
 
 
@@ -357,12 +375,9 @@ g = sns.catplot(
 )
 g.despine(left=True)
 
-# First timewin 
+# First timewin
 anova_out = statsmodels.stats.anova.AnovaRM(
-    data=df_theta,
-    depvar="ersp_win_2",
-    subject="id",
-    within=["tot", "bonus", "switch"],
+    data=df_theta, depvar="ersp_win_1", subject="id", within=["tot", "bonus", "switch"],
 ).fit()
 print(anova_out)
 
@@ -372,19 +387,23 @@ for tot in [1, 2]:
     row_counter = -1
     for bon in [1, 2]:
         for swi in [1, 2]:
-            
+
             row_counter += 1
-            
-            idx = (df_theta["tot"] == tot) & (df_theta["bonus"] == bon) & (df_theta["switch"] == swi)
+
+            idx = (
+                (df_theta["tot"] == tot)
+                & (df_theta["bonus"] == bon)
+                & (df_theta["switch"] == swi)
+            )
             theta1_values = df_theta["ersp_win_1"][idx].to_numpy()
             theta1_m = theta1_values.mean()
             theta1_std = theta1_values.std()
-            
+
             col_offset = (tot - 1) * 2
-            
+
             veusz_theta1[row_counter, col_offset] = theta1_m
             veusz_theta1[row_counter, col_offset + 1] = theta1_std
-            
+
 np.savetxt(f"{path_veusz}veusz_theta_1.csv", veusz_theta1, delimiter=",")
 
 # Plot theta
@@ -402,12 +421,9 @@ g = sns.catplot(
 )
 g.despine(left=True)
 
-# First timewin 
+# First timewin
 anova_out = statsmodels.stats.anova.AnovaRM(
-    data=df_theta,
-    depvar="ersp_win_2",
-    subject="id",
-    within=["tot", "bonus", "switch"],
+    data=df_theta, depvar="ersp_win_2", subject="id", within=["tot", "bonus", "switch"],
 ).fit()
 print(anova_out)
 
@@ -417,24 +433,28 @@ for tot in [1, 2]:
     row_counter = -1
     for bon in [1, 2]:
         for swi in [1, 2]:
-            
+
             row_counter += 1
-            
-            idx = (df_theta["tot"] == tot) & (df_theta["bonus"] == bon) & (df_theta["switch"] == swi)
+
+            idx = (
+                (df_theta["tot"] == tot)
+                & (df_theta["bonus"] == bon)
+                & (df_theta["switch"] == swi)
+            )
             theta2_values = df_theta["ersp_win_2"][idx].to_numpy()
             theta2_m = theta2_values.mean()
             theta2_std = theta2_values.std()
-            
+
             col_offset = (tot - 1) * 2
-            
+
             veusz_theta2[row_counter, col_offset] = theta2_m
             veusz_theta2[row_counter, col_offset + 1] = theta2_std
-            
+
 np.savetxt(f"{path_veusz}veusz_theta_2.csv", veusz_theta2, delimiter=",")
 
 # ITPC analysis =================================================================================
 
-# Plot RTs (still including incorrect?)
+# Plot 
 g = sns.catplot(
     x="switch",
     y="itpc_win_1",
@@ -449,16 +469,13 @@ g = sns.catplot(
 )
 g.despine(left=True)
 
-# First timewin 
+# First timewin
 anova_out = statsmodels.stats.anova.AnovaRM(
-    data=df_theta,
-    depvar="itpc_win_1",
-    subject="id",
-    within=["tot", "bonus", "switch"],
+    data=df_theta, depvar="itpc_win_1", subject="id", within=["tot", "bonus", "switch"],
 ).fit()
 print(anova_out)
 
-# Plot RTs (still including incorrect?)
+# Plot
 g = sns.catplot(
     x="switch",
     y="itpc_win_2",
@@ -473,16 +490,9 @@ g = sns.catplot(
 )
 g.despine(left=True)
 
-# First timewin 
+# First timewin
 anova_out = statsmodels.stats.anova.AnovaRM(
-    data=df_theta,
-    depvar="itpc_win_2",
-    subject="id",
-    within=["tot", "bonus", "switch"],
+    data=df_theta, depvar="itpc_win_2", subject="id", within=["tot", "bonus", "switch"],
 ).fit()
 print(anova_out)
-
-
-
-
 
