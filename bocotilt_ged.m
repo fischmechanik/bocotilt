@@ -3,8 +3,8 @@ clear all;
 
 % Path variables
 PATH_EEGLAB      = '/home/plkn/eeglab2022.0/';
-PATH_AUTOCLEANED = '/mnt/data_dump/bocotilt/2_autocleaned/';
-PATH_GED = '/mnt/data_dump/bocotilt/7_ged/';
+PATH_AUTOCLEANED = '/home/plkn/bocotilt_ged/2_autocleaned/';
+PATH_GED = '/home/plkn/bocotilt_ged/7_ged/';
 
 % Subject list
 %subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18', 'VP19', 'VP20', 'VP21', 'VP22', 'VP23', 'VP08', 'VP24', 'VP26', 'VP27', 'VP28'};

@@ -200,10 +200,10 @@ g = sns.catplot(
 )
 g.despine(left=True)
 
-anova_out = statsmodels.stats.anova.AnovaRM(
+anova_out_rt = statsmodels.stats.anova.AnovaRM(
     data=df_anova, depvar="log_rt", subject="id", within=factors,
 ).fit()
-print(anova_out)
+print(anova_out_rt)
 
 df_start_only = (
     df_anova[df_anova["blockpos_binarized"] == 0]
@@ -234,31 +234,28 @@ anova_out = statsmodels.stats.anova.AnovaRM(
 print(anova_out)
 
 # Get values for veusz
-veusz_rt = np.zeros((4, 4))
-for tot in [0, 1]:
-    row_counter = -1
-    for bon in [0, 1]:
-        for swi in [0, 1]:
-
-            row_counter += 1
-
+out_data = np.zeros((2, 8))
+col_counter = 0
+for tot in [1, 2]:
+    for bon in [1, 2]:
+        col_counter += 1
+        for swi in [1, 2]:
+            
             idx = (
-                (df_anova["blockpos_binarized"] == tot)
-                & (df_anova["bonustrial"] == bon)
-                & (df_anova["task_switch"] == swi)
+                (df_anova["blockpos_binarized"] == tot - 1)
+                & (df_anova["bonustrial"] == bon - 1)
+                & (df_anova["task_switch"] == swi - 1)
             )
-            rts = df_anova["log_rt"][idx].to_numpy()
-            rt_m = rts.mean()
-            rt_std = rts.std()
+            rt_values = df_anova["log_rt"][idx].to_numpy()
+            rt_m = rt_values.mean()
+            rt_std = rt_values.std()
 
-            col_offset = tot * 2
+            col_offset = (col_counter - 1) * 2
 
-            veusz_rt[row_counter, col_offset] = rt_m
-            veusz_rt[row_counter, col_offset + 1] = rt_std
+            out_data[swi - 1, col_offset] = rt_m
+            out_data[swi - 1, col_offset + 1] = rt_std
 
-np.savetxt(f"{path_veusz}veusz_rt.csv", veusz_rt, delimiter="\t")
-
-np.savetxt(f"{path_veusz}xax.csv", [1, 2, 3, 4], delimiter="\t")
+np.savetxt(f"{path_veusz}veusz_rt.csv", out_data, delimiter="\t")
 
 # Accuracy analysis ===================================================================================
 
@@ -283,29 +280,28 @@ anova_out = statsmodels.stats.anova.AnovaRM(
 print(anova_out)
 
 # Get values for veusz
-veusz_accuracy = np.zeros((4, 4))
-for tot in [0, 1]:
-    row_counter = -1
-    for bon in [0, 1]:
-        for swi in [0, 1]:
-
-            row_counter += 1
-
+out_data = np.zeros((2, 8))
+col_counter = 0
+for tot in [1, 2]:
+    for bon in [1, 2]:
+        col_counter += 1
+        for swi in [1, 2]:
+            
             idx = (
-                (df_anova["blockpos_binarized"] == tot)
-                & (df_anova["bonustrial"] == bon)
-                & (df_anova["task_switch"] == swi)
+                (df_anova["blockpos_binarized"] == tot - 1)
+                & (df_anova["bonustrial"] == bon - 1)
+                & (df_anova["task_switch"] == swi - 1)
             )
             acc_values = df_anova["correct"][idx].to_numpy()
             acc_m = acc_values.mean()
             acc_std = acc_values.std()
 
-            col_offset = tot * 2
+            col_offset = (col_counter - 1) * 2
 
-            veusz_accuracy[row_counter, col_offset] = acc_m
-            veusz_accuracy[row_counter, col_offset + 1] = acc_std
+            out_data[swi - 1, col_offset] = acc_m
+            out_data[swi - 1, col_offset + 1] = acc_std
 
-np.savetxt(f"{path_veusz}veusz_accuracy.csv", veusz_accuracy, delimiter="\t")
+np.savetxt(f"{path_veusz}veusz_accuracy.csv", out_data, delimiter="\t")
 
 
 # LME analysis ===================================================================================
@@ -381,14 +377,16 @@ anova_out = statsmodels.stats.anova.AnovaRM(
 ).fit()
 print(anova_out)
 
-# Get values for veusz
-veusz_theta1 = np.zeros((4, 4))
-for tot in [1, 2]:
-    row_counter = -1
-    for bon in [1, 2]:
-        for swi in [1, 2]:
 
-            row_counter += 1
+# Get values for veusz
+out_data = np.zeros((2, 8))
+col_counter = 0
+for tot in [1, 2]:
+    for bon in [1, 2]:
+        col_counter += 1
+        for swi in [1, 2]:
+            
+            
 
             idx = (
                 (df_theta["tot"] == tot)
@@ -399,12 +397,15 @@ for tot in [1, 2]:
             theta1_m = theta1_values.mean()
             theta1_std = theta1_values.std()
 
-            col_offset = (tot - 1) * 2
+            col_offset = (col_counter - 1) * 2
 
-            veusz_theta1[row_counter, col_offset] = theta1_m
-            veusz_theta1[row_counter, col_offset + 1] = theta1_std
+            out_data[swi - 1, col_offset] = theta1_m
+            out_data[swi - 1, col_offset + 1] = theta1_std
 
-np.savetxt(f"{path_veusz}veusz_theta_1.csv", veusz_theta1, delimiter=",")
+np.savetxt(f"{path_veusz}veusz_theta_1.csv", out_data, delimiter="\t")
+
+xax = [1, 2]
+np.savetxt(f"{path_veusz}xax.csv", xax)
 
 # Plot theta
 g = sns.catplot(
@@ -428,13 +429,14 @@ anova_out = statsmodels.stats.anova.AnovaRM(
 print(anova_out)
 
 # Get values for veusz
-veusz_theta2 = np.zeros((4, 4))
+out_data = np.zeros((2, 8))
+col_counter = 0
 for tot in [1, 2]:
-    row_counter = -1
     for bon in [1, 2]:
+        col_counter += 1
         for swi in [1, 2]:
-
-            row_counter += 1
+            
+            
 
             idx = (
                 (df_theta["tot"] == tot)
@@ -445,54 +447,9 @@ for tot in [1, 2]:
             theta2_m = theta2_values.mean()
             theta2_std = theta2_values.std()
 
-            col_offset = (tot - 1) * 2
+            col_offset = (col_counter - 1) * 2
 
-            veusz_theta2[row_counter, col_offset] = theta2_m
-            veusz_theta2[row_counter, col_offset + 1] = theta2_std
+            out_data[swi - 1, col_offset] = theta2_m
+            out_data[swi - 1, col_offset + 1] = theta2_std
 
-np.savetxt(f"{path_veusz}veusz_theta_2.csv", veusz_theta2, delimiter=",")
-
-# ITPC analysis =================================================================================
-
-# Plot 
-g = sns.catplot(
-    x="switch",
-    y="itpc_win_1",
-    hue="bonus",
-    col="tot",
-    capsize=0.05,
-    palette="tab20",
-    height=6,
-    aspect=0.75,
-    kind="point",
-    data=df_theta,
-)
-g.despine(left=True)
-
-# First timewin
-anova_out = statsmodels.stats.anova.AnovaRM(
-    data=df_theta, depvar="itpc_win_1", subject="id", within=["tot", "bonus", "switch"],
-).fit()
-print(anova_out)
-
-# Plot
-g = sns.catplot(
-    x="switch",
-    y="itpc_win_2",
-    hue="bonus",
-    col="tot",
-    capsize=0.05,
-    palette="tab20",
-    height=6,
-    aspect=0.75,
-    kind="point",
-    data=df_theta,
-)
-g.despine(left=True)
-
-# First timewin
-anova_out = statsmodels.stats.anova.AnovaRM(
-    data=df_theta, depvar="itpc_win_2", subject="id", within=["tot", "bonus", "switch"],
-).fit()
-print(anova_out)
-
+np.savetxt(f"{path_veusz}veusz_theta_2.csv", out_data, delimiter="\t")
