@@ -2,17 +2,18 @@ clear all;
 
 % PATH VARS
 PATH_EEGLAB        = '/home/plkn/eeglab2021.1/';
-PATH_LOGFILES      = '/mnt/data_dump/bocotilt/0_logfiles/';
-PATH_RAW           = '/mnt/data_dump/bocotilt/0_eeg_raw/';
-PATH_ICSET         = '/mnt/data_dump/bocotilt/1_icset/';
-PATH_AUTOCLEANED   = '/mnt/data_dump/bocotilt/2_autocleaned/';
+PATH_LOGFILES      = '/mnt/data2/bocotilt/0_logfiles/';
+PATH_RAW           = '/mnt/data2/bocotilt/0_raw/';
+PATH_ICSET         = '/mnt/data2/bocotilt/1_icset/';
+PATH_AUTOCLEANED   = '/mnt/data2/bocotilt/2_autocleaned/';
 
 % Subjects
-subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18', 'VP19', 'VP20', 'VP21', 'VP22', 'VP23', 'VP08', 'VP24', 'VP26', 'VP27', 'VP28'};
+subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18', 'VP19', 'VP20',...
+                'VP21', 'VP22', 'VP23', 'VP08', 'VP24', 'VP26', 'VP27', 'VP28', 'VP29', 'VP30', 'VP31'};
 
 % Test switch                  
 if true
-    subject_list = {'VP28'};
+    subject_list = {'VP30'};
 end
 
 % Init eeglab
@@ -44,6 +45,13 @@ for s = 1 : length(subject_list)
                                 'changefield', {1, 'bvmknum', 3733},...
                                 'changefield', {1, 'type', 'S121'},...
                                 'changefield', {1, 'code', 'Stimulus'});
+    end
+
+    % Subject 30 has been restarted after a couple of trials.
+    % Remove all events until second start of block 1 (second occurence of 'S121'),
+    % which is event number 36...
+    if id == 30
+        EEG.event(1 : 35) = [];
     end
 
     % Fork response button channels
@@ -201,8 +209,8 @@ for s = 1 : length(subject_list)
                                         ERP.event(e).position_tilt,...
                                         ERP.event(e).position_target,...
                                         ERP.event(e).position_distractor,...    
-                                        ERP.event(e).sequence_position,...
-                                        ERP.event(e).sequence_length,...
+                                        ERP.event(e).sequence_position,... % Remove in next version...
+                                        -1,...
                                         ];
 
         end
@@ -251,7 +259,7 @@ for s = 1 : length(subject_list)
                                         EEG.event(e).position_target,...
                                         EEG.event(e).position_distractor,...    
                                         EEG.event(e).sequence_position,...
-                                        EEG.event(e).sequence_length,...
+                                        -1,... % Remove in next version...
                                         ];
 
         end

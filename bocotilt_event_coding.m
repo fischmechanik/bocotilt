@@ -222,7 +222,7 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions, trial_log)
     % Get indices of trials
     trial_idx = [];
     for e = 1 : length(new_events)
-        if strcmpi(new_events(nec).type, "trial")
+        if strcmpi(new_events(e).type, "trial")
             trial_idx(end + 1) = e;
         end
     end

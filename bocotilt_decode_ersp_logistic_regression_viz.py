@@ -29,18 +29,39 @@ def moving_average(x, w=smowin):
 
 # A plotting and statistics function
 def plot_decoding_result(
-    data_cond_1,
-    condition2,
+    data_std_rep,
+    data_std_swi,
+    data_bon_rep,
+    data_bon_swi,
     decode_label="title",
-    label_cond_1="cond1",
-    label_cond_2="cond2",
-    performance_measure="accuracy",
     f_thresh=6.0,
 ):
 
-    # Perform cluster-test
-    T_obs, clusters, cluster_p_values, H0 = mne.stats.permutation_cluster_test(
-        [data_cond_1, condition2],
+    # Average for main effects
+    data_std = np.stack([(data_std_rep[x] + data_std_swi[x]) / 2 for x in range(len(data_std_rep))])
+    data_bon = np.stack([(data_bon_rep[x] + data_bon_swi[x]) / 2 for x in range(len(data_bon_rep))])
+    data_rep = np.stack([(data_std_rep[x] + data_bon_rep[x]) / 2 for x in range(len(data_std_rep))])
+    data_swi = np.stack([(data_std_swi[x] + data_bon_swi[x]) / 2 for x in range(len(data_std_swi))])
+    
+    # Stack
+    data_std_rep = np.stack(data_std_rep)
+    data_std_swi = np.stack(data_std_swi)
+    data_bon_rep = np.stack(data_bon_rep)
+    data_bon_swi = np.stack(data_bon_swi)
+    
+    # Test bonus
+    T_obs_bon, clusters_bon, cluster_p_values_bon, H0_bon = mne.stats.permutation_cluster_test(
+        [data_std, data_bon],
+        n_permutations=1000,
+        threshold=f_thresh,
+        tail=1,
+        n_jobs=1,
+        out_type="mask",
+    )
+    
+    # Test switch
+    T_obs_swi, clusters_swi, cluster_p_values_swi, H0_swi = mne.stats.permutation_cluster_test(
+        [data_rep, data_swi],
         n_permutations=1000,
         threshold=f_thresh,
         tail=1,
@@ -56,26 +77,32 @@ def plot_decoding_result(
 
     # Plot classifier performance
     ax1.plot(
-        times, data_cond_1.mean(axis=0), label=label_cond_1,
+        times, data_std_rep.mean(axis=0), label="std-rep",
     )
     ax1.plot(
-        times, condition2.mean(axis=0), label=label_cond_2,
+        times, data_std_swi.mean(axis=0), label="std-swi",
     )
-    ax1.set_ylabel(performance_measure)
+    ax1.plot(
+        times, data_bon_rep.mean(axis=0), label="bon-rep",
+    )
+    ax1.plot(
+        times, data_bon_swi.mean(axis=0), label="bon-swi",
+    )
+    ax1.set_ylabel("accuracy")
     ax1.set_xlabel("time (s)")
     ax1.legend()
 
     # Plot statistics
-    for i_c, c in enumerate(clusters):
-        c = c[0]
-        if cluster_p_values[i_c] <= 0.05:
-            h = ax2.axvspan(times[c.start], times[c.stop - 1], color="g", alpha=0.3)
-        else:
-            ax2.axvspan(
-                times[c.start], times[c.stop - 1], color=(0.3, 0.3, 0.3), alpha=0.3
-            )
+    #for i_c, c in enumerate(clusters_bon):
+    #    c = c[0]
+    #    if cluster_p_values[i_c] <= 0.05:
+    #        h = ax2.axvspan(times[c.start], times[c.stop - 1], color="g", alpha=0.3)
+    #    else:
+    #        ax2.axvspan(
+    #            times[c.start], times[c.stop - 1], color=(0.3, 0.3, 0.3), alpha=0.3
+    #        )
 
-    hf = plt.plot(times, T_obs, "m")
+    #hf = plt.plot(times, T_obs_bon, "m")
     # ax2.legend((h,), ("cluster p-value < 0.05",))
     ax2.set_xlabel("time (s)")
     ax2.set_ylabel("f-values")
@@ -121,11 +148,11 @@ condition2 = np.stack(cue_bon_rep)
 
 # Target position
 plot_decoding_result(
-    condition1,
-    condition2,
+    task_std_rep,
+    task_std_swi,
+    task_bon_rep,
+    task_bon_swi,
     decode_label="stuff",
-    label_cond_1="lab1",
-    label_cond_2="lab2",
     f_thresh=2.0,
 )
 
