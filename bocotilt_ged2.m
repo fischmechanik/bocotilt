@@ -76,8 +76,8 @@ if ismember('part1', to_execute)
         eeg_data_filtered = eeg_data_filtered(:, crop_idx, :);
 
         % Find indices of time points for S & R selection
-		tidx_S = (times >= 200 & times <= 700) | (times >= 1000 & times <= 1500);
-		tidx_R = (times >= 200 & times <= 700) | (times >= 1000 & times <= 1500);
+		tidx_S = (times >= 200 & times <= 700);
+		tidx_R = (times >= 200 & times <= 700);
         
         % Init arrays for trial-specific covariance matrices
         covmats_S = zeros(size(eeg_data, 3), size(eeg_data, 1), size(eeg_data, 1));

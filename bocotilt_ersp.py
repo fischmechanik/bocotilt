@@ -11,8 +11,8 @@ import joblib
 import os
 
 # Define paths
-path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
-path_out = "/mnt/data_dump/bocotilt/6_tf_analysis/"
+path_in = "/mnt/data2/bocotilt/2_autocleaned/"
+path_out = "/mnt/data2/bocotilt/4_ersp/"
 
 # Iterate preprocessed datasets
 datasets = glob.glob(f"{path_in}/*cleaned.set")
@@ -28,7 +28,7 @@ for dataset_idx, dataset in enumerate(datasets):
     id_string = dataset.split("VP")[1][0:2]
 
     # Load eeg data
-    eeg_epochs = mne.io.read_epochs_eeglab(dataset).apply_baseline(baseline=(-0.2, 0))
+    eeg_epochs = mne.io.read_epochs_eeglab(dataset)
 
     # Rename channels and seet montage
     eeg_epochs.rename_channels({"O9": "I1", "O10": "I2"})
@@ -64,56 +64,54 @@ for dataset_idx, dataset in enumerate(datasets):
         "sequence_length",
     ]
 
-    # Remove practice trials and incorrect trials
+    # Remove practice trials and incorrect trials and first of sequence
     idx_to_drop = (
-        (df_trialinfo["block"] <= 4) | (df_trialinfo["log_accuracy"] != 1)
+        (df_trialinfo["block"] <= 4)
+        | (df_trialinfo["log_accuracy"] != 1)
+        | (df_trialinfo["sequence_position"] == 1)
     ).to_numpy()
     df_trialinfo = df_trialinfo.loc[np.invert(idx_to_drop), :]
     eeg_epochs.drop(idx_to_drop)
 
-    # Define experimental factors
-    factors = ["block", "bonus"]
-
-    # Get all factor levels
-    factor_levels = [list(df_trialinfo[f].unique()) for f in factors]
-
-    # Get all factor level combinations
-    factor_level_combinations = list(itertools.product(*factor_levels))
+    # Get condition indices
+    condition_idx = {
+        "standard_repeat": (df_trialinfo["bonus"] == 0)
+        & (df_trialinfo["task_switch"] == 0),
+        "standard_switch": (df_trialinfo["bonus"] == 0)
+        & (df_trialinfo["task_switch"] == 1),
+        "bonus_repeat": (df_trialinfo["bonus"] == 1)
+        & (df_trialinfo["task_switch"] == 0),
+        "bonus_switch": (df_trialinfo["bonus"] == 1)
+        & (df_trialinfo["task_switch"] == 1),
+    }
 
     # Initialize result dict
     tf_data = {
-        "factors": factors,
-        "levels": factor_level_combinations,
+        "conditions": [],
         "power": [],
         "itc": [],
     }
 
     # Loop factor level combinations
-    for comb in factor_level_combinations:
-
-        # Boolean mask
-        boolean_mask = np.all(
-            np.stack(
-                [
-                    (df_trialinfo[f] == comb[f_idx]).to_numpy()
-                    for f_idx, f in enumerate(factors)
-                ]
-            ),
-            axis=0,
-        )
+    for cond in condition_idx:
 
         # Select epochs
-        eeg_epochs_comb = eeg_epochs[boolean_mask]
+        eeg_epochs_cond = eeg_epochs[condition_idx[cond]]
 
         # Perform time-frequency analysis and apply baseline
-        tf_freqs = np.linspace(2, 16, 20)
-        tf_cycles = np.linspace(3, 12, 20)
+        tf_freqs = np.linspace(2, 30, 50)
+        tf_cycles = np.linspace(3, 14, 50)
         power, itc = mne.time_frequency.tfr_morlet(
-            eeg_epochs, tf_freqs, n_cycles=tf_cycles, n_jobs=-2, decim=2,
+            eeg_epochs_cond, tf_freqs, n_cycles=tf_cycles, n_jobs=-2, decim=2,
         )
         power.apply_baseline(mode="logratio", baseline=(-0.5, -0.2))
 
+        # Crop
+        power = power.crop(tmin=-0.5, tmax=2)
+        itc = itc.crop(tmin=-0.5, tmax=2)
+
         # Collect across condition combinations
+        tf_data["conditions"].append(cond)
         tf_data["power"].append(power)
         tf_data["itc"].append(itc)
 
@@ -121,11 +119,6 @@ for dataset_idx, dataset in enumerate(datasets):
     tf_datasets.append(tf_data)
 
 # Save
-factors_as_string = ""
-for f in factors:
-    factors_as_string = factors_as_string + "_" + f
-
-out_file = os.path.join(path_out, f"tf_datasets{factors_as_string}.joblib")
+out_file = os.path.join(path_out, f"tf_datasets_task_switch_bonus.joblib")
 joblib.dump(tf_datasets, out_file)
-
 
