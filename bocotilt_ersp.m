@@ -2,10 +2,11 @@
 clear all;
 
 % Path variables
-PATH_EEGLAB      = '/home/plkn/eeglab2021.1/';
+PATH_EEGLAB      = '/home/plkn/eeglab2022.0/';
 PATH_AUTOCLEANED = '/mnt/data2/bocotilt/2_autocleaned/';
 PATH_TF_DATA     = '/mnt/data2/bocotilt/4_ersp/';
 PATH_FIELDTRIP   = '/home/plkn/fieldtrip/';
+PATH_OUT         = '/mnt/data2/bocotilt/4_ersp/out/';
 
 % Subject list
 subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18',...
@@ -29,8 +30,8 @@ if ismember('part1', to_execute)
     EEG = pop_loadset('filename', [subject_list{1} '_cleaned.set'], 'filepath', PATH_AUTOCLEANED, 'loadmode', 'info');
 
     % Set complex Morlet wavelet parameters
-    n_frq = 50;
-    frqrange = [2, 25];
+    n_frq = 15;
+    frqrange = [2, 20];
     tfres_range = [400, 100];
 
     % Create wavelet frequencies and tapering Gaussian widths in temporal domain
@@ -66,7 +67,7 @@ if ismember('part1', to_execute)
         eeg_data = double(EEG.data);
 
         % Exclude trials
-        to_keep = EEG.trialinfo(:, 2) > 4 & EEG.trialinfo(:, 17) == 1 & EEG.trialinfo(:, 22) > 1;
+        to_keep = EEG.trialinfo(:, 2) > 4 & EEG.trialinfo(:, 17) == 1 & EEG.trialinfo(:, 22) > 4;
         eeg_data = eeg_data(:, :, to_keep);
         EEG.trialinfo = EEG.trialinfo(to_keep, :);
         EEG.trials = sum(to_keep);
@@ -123,22 +124,28 @@ if ismember('part1', to_execute)
             powcube = powcube(:, dsearchn(EEG.times', -500) : dsearchn(EEG.times', 2000), :);
             phacube = phacube(:, dsearchn(EEG.times', -500) : dsearchn(EEG.times', 2000), :);
 
-            % Get condition general baseline values
+            % Get baseline values
             bl_idx = tf_times >= -500 & tf_times <= -200;
-            tmp = squeeze(mean(powcube, 3));
-            blvals = squeeze(mean(tmp(:, bl_idx), 2));
+            tmp_std_rep = squeeze(mean(powcube(:, :, idx_std_rep), 3));
+            tmp_std_swi = squeeze(mean(powcube(:, :, idx_std_swi), 3));
+            tmp_bon_rep = squeeze(mean(powcube(:, :, idx_bon_rep), 3));
+            tmp_bon_swi = squeeze(mean(powcube(:, :, idx_bon_swi), 3));
+            blvals_std_rep = squeeze(mean(tmp_std_rep(:, bl_idx), 2));
+            blvals_std_swi = squeeze(mean(tmp_std_swi(:, bl_idx), 2));
+            blvals_bon_rep = squeeze(mean(tmp_bon_rep(:, bl_idx), 2));
+            blvals_bon_swi = squeeze(mean(tmp_bon_swi(:, bl_idx), 2));
 
             % Calculate ersp
-            ersp(s, 1, 1, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_std_rep), 3)), blvals));
-            ersp(s, 1, 2, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_std_swi), 3)), blvals));
-            ersp(s, 2, 1, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_bon_rep), 3)), blvals));
-            ersp(s, 2, 2, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_bon_swi), 3)), blvals));
+            ersp(s, 1, 1, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_std_rep), 3)), blvals_std_rep));
+            ersp(s, 1, 2, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_std_swi), 3)), blvals_std_swi));
+            ersp(s, 2, 1, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_bon_rep), 3)), blvals_bon_rep));
+            ersp(s, 2, 2, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_bon_swi), 3)), blvals_bon_swi));
 
             % Calculate itpc
             itpc(s, 1, 1, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_std_rep), 3)));
-            itpc(s, 1, 2, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_std_rep), 3)));
-            itpc(s, 2, 1, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_std_rep), 3)));
-            itpc(s, 2, 2, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_std_rep), 3)));
+            itpc(s, 1, 2, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_std_swi), 3)));
+            itpc(s, 2, 1, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_bon_rep), 3)));
+            itpc(s, 2, 2, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_bon_swi), 3)));
 
         end % end channel loop
     end % end subject loop
@@ -171,6 +178,14 @@ if ismember('part2', to_execute)
 
     % To double
     ersp = double(ersp);
+
+    % Exclude
+    to_exclude = {'VP10', 'VP28'};
+    idx_exclude = []
+    for ex = 1 : numel(to_exclude)
+        idx_exclude(ex) = find(strcmpi(subject_list, to_exclude{ex}));
+    end
+    ersp(idx_exclude, :, :, :, :, :) = [];
 
     % Get dims
     [n_subjects, n_bonus, n_switch, n_channels, n_freqs, n_times] = size(ersp);
@@ -284,13 +299,11 @@ if ismember('part2', to_execute)
     [stat_switch] = ft_freqstatistics(cfg, GA_rep, GA_swi);
     [stat_interaction] = ft_freqstatistics(cfg, GA_diff_std, GA_diff_bon);
 
-    aa=bb
-
     % Calculate and save effect sizes
     adjpetasq_bonus = [];
     adjpetasq_switch = [];
     adjpetasq_interaction = [];
-    for ch = 1 : EEG.nbchan
+    for ch = 1 : n_channels
         petasq = (squeeze(stat_bonus.stat(ch, :, :)) .^ 2) ./ ((squeeze(stat_bonus.stat(ch, :, :)) .^ 2) + (n_subjects - 1));
         adj_petasq = petasq - (1 - petasq) .* (1 / (n_subjects - 1));
         adjpetasq_bonus(ch, :, :) = adj_petasq;
@@ -305,13 +318,14 @@ if ismember('part2', to_execute)
     end
 
     % Identify significant clusters
+    clust_thresh = 0.3;
     clusts = struct();
     cnt = 0;
     stat_names = {'stat_bonus', 'stat_switch', 'stat_interaction'};
     for s = 1 : numel(stat_names)
         stat = eval(stat_names{s});
         if ~isempty(stat.negclusters)
-            neg_idx = find([stat.negclusters(1, :).prob] < testalpha);
+            neg_idx = find([stat.negclusters(1, :).prob] < clust_thresh);
             for c = 1 : numel(neg_idx)
                 cnt = cnt + 1;
                 clusts(cnt).testlabel = stat_names{s};
@@ -326,7 +340,7 @@ if ismember('part2', to_execute)
             end
         end
         if ~isempty(stat.posclusters)
-            pos_idx = find([stat.posclusters(1, :).prob] < testalpha);
+            pos_idx = find([stat.posclusters(1, :).prob] < clust_thresh);
             for c = 1 : numel(pos_idx)
                 cnt = cnt + 1;
                 clusts(cnt).testlabel = stat_names{s};
@@ -343,12 +357,11 @@ if ismember('part2', to_execute)
     end
 
     % Save cluster struct
-    save([PATH_CLUSTSTATS 'significant_clusters.mat'], 'clusts');
+    % save([PATH_CLUSTSTATS 'significant_clusters.mat'], 'clusts');
 
     % Plot identified cluster
     clinecol = 'k';
     cmap = 'jet';
-    chanlocs = EEG.chanlocs;
     for cnt = 1 : numel(clusts)
 
         figure('Visible', 'off'); clf;
@@ -389,7 +402,7 @@ if ismember('part2', to_execute)
         colorbar;
         title(['proportion tf-points significant'], 'FontSize', 10)
 
-        saveas(gcf, [PATH_PLOT 'clustnum_' num2str(clusts(cnt).clustnum) '_' clusts(cnt).testlabel '.png']); 
+        saveas(gcf, [PATH_OUT 'clustnum_' num2str(clusts(cnt).clustnum) '_' clusts(cnt).testlabel '.png']); 
     end
 
 

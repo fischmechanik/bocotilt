@@ -38,19 +38,32 @@ def plot_decoding_result(
 ):
 
     # Average for main effects
-    data_std = np.stack([(data_std_rep[x] + data_std_swi[x]) / 2 for x in range(len(data_std_rep))])
-    data_bon = np.stack([(data_bon_rep[x] + data_bon_swi[x]) / 2 for x in range(len(data_bon_rep))])
-    data_rep = np.stack([(data_std_rep[x] + data_bon_rep[x]) / 2 for x in range(len(data_std_rep))])
-    data_swi = np.stack([(data_std_swi[x] + data_bon_swi[x]) / 2 for x in range(len(data_std_swi))])
-    
+    data_std = np.stack(
+        [(data_std_rep[x] + data_std_swi[x]) / 2 for x in range(len(data_std_rep))]
+    )
+    data_bon = np.stack(
+        [(data_bon_rep[x] + data_bon_swi[x]) / 2 for x in range(len(data_bon_rep))]
+    )
+    data_rep = np.stack(
+        [(data_std_rep[x] + data_bon_rep[x]) / 2 for x in range(len(data_std_rep))]
+    )
+    data_swi = np.stack(
+        [(data_std_swi[x] + data_bon_swi[x]) / 2 for x in range(len(data_std_swi))]
+    )
+
     # Stack
     data_std_rep = np.stack(data_std_rep)
     data_std_swi = np.stack(data_std_swi)
     data_bon_rep = np.stack(data_bon_rep)
     data_bon_swi = np.stack(data_bon_swi)
-    
+
     # Test bonus
-    T_obs_bon, clusters_bon, cluster_p_values_bon, H0_bon = mne.stats.permutation_cluster_test(
+    (
+        T_obs_bon,
+        clusters_bon,
+        cluster_p_values_bon,
+        H0_bon,
+    ) = mne.stats.permutation_cluster_test(
         [data_std, data_bon],
         n_permutations=1000,
         threshold=f_thresh,
@@ -58,9 +71,14 @@ def plot_decoding_result(
         n_jobs=1,
         out_type="mask",
     )
-    
+
     # Test switch
-    T_obs_swi, clusters_swi, cluster_p_values_swi, H0_swi = mne.stats.permutation_cluster_test(
+    (
+        T_obs_swi,
+        clusters_swi,
+        cluster_p_values_swi,
+        H0_swi,
+    ) = mne.stats.permutation_cluster_test(
         [data_rep, data_swi],
         n_permutations=1000,
         threshold=f_thresh,
@@ -93,7 +111,7 @@ def plot_decoding_result(
     ax1.legend()
 
     # Plot statistics
-    #for i_c, c in enumerate(clusters_bon):
+    # for i_c, c in enumerate(clusters_bon):
     #    c = c[0]
     #    if cluster_p_values[i_c] <= 0.05:
     #        h = ax2.axvspan(times[c.start], times[c.stop - 1], color="g", alpha=0.3)
@@ -102,7 +120,7 @@ def plot_decoding_result(
     #            times[c.start], times[c.stop - 1], color=(0.3, 0.3, 0.3), alpha=0.3
     #        )
 
-    #hf = plt.plot(times, T_obs_bon, "m")
+    # hf = plt.plot(times, T_obs_bon, "m")
     # ax2.legend((h,), ("cluster p-value < 0.05",))
     ax2.set_xlabel("time (s)")
     ax2.set_ylabel("f-values")
@@ -120,6 +138,18 @@ cue_std_rep = []
 cue_std_swi = []
 cue_bon_rep = []
 cue_bon_swi = []
+response_std_rep = []
+response_std_swi = []
+response_bon_rep = []
+response_bon_swi = []
+target_std_rep = []
+target_std_swi = []
+target_bon_rep = []
+target_bon_swi = []
+distractor_std_rep = []
+distractor_std_swi = []
+distractor_bon_rep = []
+distractor_bon_swi = []
 
 # read data
 for dataset in datasets:
@@ -133,25 +163,37 @@ for dataset in datasets:
     task_bon_rep.append(moving_average(data["acc"][2]))
     task_bon_swi.append(moving_average(data["acc"][3]))
 
-    cue_std_rep.append(moving_average(data["acc"][8]))
-    cue_std_swi.append(moving_average(data["acc"][9]))
-    cue_bon_rep.append(moving_average(data["acc"][10]))
-    cue_bon_swi.append(moving_average(data["acc"][11]))
+    cue_std_rep.append(moving_average(data["acc"][4]))
+    cue_std_swi.append(moving_average(data["acc"][5]))
+    cue_bon_rep.append(moving_average(data["acc"][6]))
+    cue_bon_swi.append(moving_average(data["acc"][7]))
+
+    response_std_rep.append(moving_average(data["acc"][8]))
+    response_std_swi.append(moving_average(data["acc"][9]))
+    response_bon_rep.append(moving_average(data["acc"][10]))
+    response_bon_swi.append(moving_average(data["acc"][11]))
+
+    target_std_rep.append(moving_average(data["acc"][12]))
+    target_std_swi.append(moving_average(data["acc"][13]))
+    target_bon_rep.append(moving_average(data["acc"][14]))
+    target_bon_swi.append(moving_average(data["acc"][15]))
+
+    distractor_std_rep.append(moving_average(data["acc"][16]))
+    distractor_std_swi.append(moving_average(data["acc"][17]))
+    distractor_bon_rep.append(moving_average(data["acc"][18]))
+    distractor_bon_swi.append(moving_average(data["acc"][19]))
 
 
 # Adjust time vector to smoothing function
 times = data["tf_times"][smowin - 1 :]
 
-# get condition data
-condition1 = np.stack(cue_std_rep)
-condition2 = np.stack(cue_bon_rep)
 
-# Target position
+# Plot
 plot_decoding_result(
-    task_std_rep,
-    task_std_swi,
-    task_bon_rep,
-    task_bon_swi,
+    distractor_std_rep,
+    distractor_std_swi,
+    distractor_bon_rep,
+    distractor_bon_swi,
     decode_label="stuff",
     f_thresh=2.0,
 )
