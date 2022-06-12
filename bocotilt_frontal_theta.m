@@ -2,12 +2,15 @@
 clear all;
 
 % Path variables
-PATH_EEGLAB      = '/home/plkn/eeglab2021.1/';
-PATH_AUTOCLEANED = '/mnt/data_dump/bocotilt/2_autocleaned/';
-PATH_TFDECOMP    = '/mnt/data_dump/bocotilt/4_frontal_theta/';
+PATH_EEGLAB      = '/home/plkn/eeglab2022.0/';
+PATH_AUTOCLEANED = '/mnt/data2/bocotilt/2_autocleaned/';
+PATH_TFDECOMP    = '/mnt/data2/bocotilt/frontal_theta/';
+PATH_LOGFILES    = '/mnt/data2/bocotilt/0_logfiles/';
 
 % Subject list
-subject_list = {'VP08', 'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18', 'VP19', 'VP20', 'VP21', 'VP22', 'VP23', 'VP24'};
+subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18',...
+                'VP19', 'VP20', 'VP21', 'VP22', 'VP23', 'VP08', 'VP24', 'VP26', 'VP27', 'VP28',...
+                'VP29', 'VP30', 'VP31'};
 
 % Init eeglab
 addpath(PATH_EEGLAB);
@@ -82,6 +85,30 @@ if ismember('part1', to_execute)
         subject = subject_list{s};
         id = str2num(subject(3 : 4));
 
+        % Open log file
+        fid = fopen([PATH_LOGFILES, subject, '_degreeLog.txt'], 'r');
+
+        % Extract lines as strings
+        logcell = {};
+        tline = fgetl(fid);
+        while ischar(tline)
+            logcell{end + 1} = tline;
+            tline = fgetl(fid);
+        end
+
+        % Delete header
+        logcell(1 : 3) = [];
+
+        % Iterate last 100 trials and extract rt thresholds
+        rt_threshs = [];
+        for l = 1 : 100
+            line_values = split(logcell{length(logcell) - l}, ' ');
+            rt_threshs(l, 1) = str2num(line_values{5});
+            rt_threshs(l, 2) = str2num(line_values{13});
+        end
+        rt_thresh_color = mean(rt_threshs(rt_threshs(:, 1) == 2, 2));
+        rt_thresh_tilt = mean(rt_threshs(rt_threshs(:, 1) == 1, 2));
+
         % Load data
         EEG = pop_loadset('filename', [subject_list{s} '_cleaned.set'], 'filepath', PATH_AUTOCLEANED, 'loadmode', 'all');
 
@@ -147,6 +174,8 @@ if ismember('part1', to_execute)
         tf_struct.powcube = powcube;
         tf_struct.phacube = phacube;
         tf_struct.zcube = zcube;
+        tf_struct.rt_thresh_color = rt_thresh_color;
+        tf_struct.rt_thresh_tilt = rt_thresh_tilt;
         save([PATH_TFDECOMP, subject, '_tf_decomp'], 'tf_struct');
 
     end % End subject iteration
@@ -159,7 +188,10 @@ if ismember('part2', to_execute)
     % Theta traces matrices
     theta_traces_ersp = [];
     theta_traces_erst = [];
-    theta_traces_itpc = [];
+    rts = [];
+    accuracy = [];
+    incorrect = [];
+    omissions = [];
 
     % Loop subjects
     for s = 1 : length(subject_list)
@@ -170,6 +202,17 @@ if ismember('part2', to_execute)
 
         % Load tf data
         load([PATH_TFDECOMP, subject, '_tf_decomp']);
+
+        % Add to trialinfo
+        for t = 1 : size(tf_struct.trialinfo, 1)
+            if tf_struct.trialinfo(t, 17) == 1 & tf_struct.trialinfo(t, 5) == 0 & tf_struct.trialinfo(t, 16) <= tf_struct.rt_thresh_color
+                tf_struct.trialinfo(t, 24) = 1;
+            elseif tf_struct.trialinfo(t, 17) == 1 & tf_struct.trialinfo(t, 5) == 1 & tf_struct.trialinfo(t, 16) <= tf_struct.rt_thresh_tilt
+                tf_struct.trialinfo(t, 24) = 1;
+            else
+                tf_struct.trialinfo(t, 24) = 0;
+            end
+        end
 
         % Trialinfo columns:
         %  1: id
@@ -195,9 +238,10 @@ if ismember('part2', to_execute)
         % 21: position_distractor
         % 22: sequence_position
         % 23: sequence_length
+        % 24: Better than thresh
 
-        % Drop incorrect and practice blocks
-        to_drop = tf_struct.trialinfo(:, 2) <= 4 | tf_struct.trialinfo(:, 17) ~= 1;
+        % Drop practice blocks
+        to_drop = tf_struct.trialinfo(:, 2) <= 4;
         tf_struct.trialinfo(to_drop, :) = [];
         tf_struct.powcube(:, :, to_drop) = [];
         tf_struct.phacube(:, :, to_drop) = []; 
@@ -209,32 +253,45 @@ if ismember('part2', to_execute)
         tf_struct.powcube(:, :, to_drop) = [];
         tf_struct.phacube(:, :, to_drop) = []; 
         tf_struct.zcube(:, :, to_drop) = [];
-        
-        % Get condition idx
+
+        % Get accuracy measures
         idx_std_rep = find(tf_struct.trialinfo(:, 4) == 0 & tf_struct.trialinfo(:, 10) == 0);
         idx_std_swi = find(tf_struct.trialinfo(:, 4) == 0 & tf_struct.trialinfo(:, 10) == 1);
         idx_bon_rep = find(tf_struct.trialinfo(:, 4) == 1 & tf_struct.trialinfo(:, 10) == 0);
         idx_bon_swi = find(tf_struct.trialinfo(:, 4) == 1 & tf_struct.trialinfo(:, 10) == 1);
 
-        % Get minumum n
-        min_n = min([length(idx_std_rep),...
-                     length(idx_std_swi),...
-                     length(idx_bon_rep),...
-                     length(idx_bon_swi)]); 
+        accuracy(s, 1) =   sum(tf_struct.trialinfo(idx_std_rep, 17) == 1) / size(idx_std_rep, 1);
+        incorrect(s, 1) = sum(tf_struct.trialinfo(idx_std_rep, 17) == 0) / size(idx_std_rep, 1);
+        omissions(s, 1) =  sum(tf_struct.trialinfo(idx_std_rep, 17) == 2) / size(idx_std_rep, 1);
 
-        % Selcect random samples to balance n
-        idx_std_rep = randsample(idx_std_rep, min_n);
-        idx_std_swi = randsample(idx_std_swi, min_n);
-        idx_bon_rep = randsample(idx_bon_rep, min_n);
-        idx_bon_swi = randsample(idx_bon_swi, min_n);
+        accuracy(s, 2) =   sum(tf_struct.trialinfo(idx_std_swi, 17) == 1) / size(idx_std_swi, 1);
+        incorrect(s, 2) = sum(tf_struct.trialinfo(idx_std_swi, 17) == 0) / size(idx_std_swi, 1);
+        omissions(s, 2) =  sum(tf_struct.trialinfo(idx_std_swi, 17) == 2) / size(idx_std_swi, 1);
+
+        accuracy(s, 3) =   sum(tf_struct.trialinfo(idx_bon_rep, 17) == 1) / size(idx_bon_rep, 1);
+        incorrect(s, 3) = sum(tf_struct.trialinfo(idx_bon_rep, 17) == 0) / size(idx_bon_rep, 1);
+        omissions(s, 3) =  sum(tf_struct.trialinfo(idx_bon_rep, 17) == 2) / size(idx_bon_rep, 1);
+
+        accuracy(s, 4) =   sum(tf_struct.trialinfo(idx_bon_swi, 17) == 1) / size(idx_bon_swi, 1);
+        incorrect(s, 4) = sum(tf_struct.trialinfo(idx_bon_swi, 17) == 0) / size(idx_bon_swi, 1);
+        omissions(s, 4) =  sum(tf_struct.trialinfo(idx_bon_swi, 17) == 2) / size(idx_bon_swi, 1);
+
+        % Drop incorrect 
+        to_drop = tf_struct.trialinfo(:, 17) ~= 1;
+        tf_struct.trialinfo(to_drop, :) = [];
+        tf_struct.powcube(:, :, to_drop) = [];
+        tf_struct.phacube(:, :, to_drop) = []; 
+        tf_struct.zcube(:, :, to_drop) = [];
+        
+        % Get condition idx again
+        idx_std_rep = find(tf_struct.trialinfo(:, 4) == 0 & tf_struct.trialinfo(:, 10) == 0);
+        idx_std_swi = find(tf_struct.trialinfo(:, 4) == 0 & tf_struct.trialinfo(:, 10) == 1);
+        idx_bon_rep = find(tf_struct.trialinfo(:, 4) == 1 & tf_struct.trialinfo(:, 10) == 0);
+        idx_bon_swi = find(tf_struct.trialinfo(:, 4) == 1 & tf_struct.trialinfo(:, 10) == 1);
 
         % Get condition general baseline values
         ersp_bl = [-500, -200];
-        idx_all = [idx_std_rep,...
-                   idx_std_swi,...
-                   idx_bon_rep,...
-                   idx_bon_swi]; 
-        tmp = squeeze(mean(tf_struct.powcube(:, :, idx_all), 3));
+        tmp = squeeze(mean(tf_struct.powcube, 3));
         [~, blidx1] = min(abs(tf_struct.tf_times - ersp_bl(1)));
         [~, blidx2] = min(abs(tf_struct.tf_times - ersp_bl(2)));
         blvals = squeeze(mean(tmp(:, blidx1 : blidx2), 2));
@@ -251,14 +308,14 @@ if ismember('part2', to_execute)
         erst_bon_rep = squeeze(mean(tf_struct.zcube(:, :, idx_bon_rep), 3));
         erst_bon_swi = squeeze(mean(tf_struct.zcube(:, :, idx_bon_swi), 3));
 
-        % Calc itpc
-        itpc_std_rep = abs(squeeze(mean(exp(1i * tf_struct.phacube(:, :, idx_std_rep)), 3)));
-        itpc_std_swi = abs(squeeze(mean(exp(1i * tf_struct.phacube(:, :, idx_std_swi)), 3)));
-        itpc_bon_rep = abs(squeeze(mean(exp(1i * tf_struct.phacube(:, :, idx_bon_rep)), 3)));
-        itpc_bon_swi = abs(squeeze(mean(exp(1i * tf_struct.phacube(:, :, idx_bon_swi)), 3)));
+        % Get rt
+        rts(s, 1) = mean(tf_struct.trialinfo(idx_std_rep, 16));
+        rts(s, 2) = mean(tf_struct.trialinfo(idx_std_swi, 16));
+        rts(s, 3) = mean(tf_struct.trialinfo(idx_bon_rep, 16));
+        rts(s, 4) = mean(tf_struct.trialinfo(idx_bon_swi, 16));
 
         % Select frqrange
-        idx_freqs = tf_struct.tf_freqs >= 4 & tf_struct.tf_freqs <= 7;
+        idx_freqs = tf_struct.tf_freqs >= 4 & tf_struct.tf_freqs <= 8;
 
         % Save traces
         theta_traces_ersp(s, 1, 1, :) = mean(ersp_std_rep(idx_freqs, :), 1);
@@ -271,81 +328,142 @@ if ismember('part2', to_execute)
         theta_traces_erst(s, 2, 1, :) = mean(erst_bon_rep(idx_freqs, :), 1);
         theta_traces_erst(s, 2, 2, :) = mean(erst_bon_swi(idx_freqs, :), 1);
 
-        theta_traces_itpc(s, 1, 1, :) = mean(itpc_std_rep(idx_freqs, :), 1);
-        theta_traces_itpc(s, 1, 2, :) = mean(itpc_std_swi(idx_freqs, :), 1);
-        theta_traces_itpc(s, 2, 1, :) = mean(itpc_bon_rep(idx_freqs, :), 1);
-        theta_traces_itpc(s, 2, 2, :) = mean(itpc_bon_swi(idx_freqs, :), 1);
-
     end % End subject loop
 
-    % Average
-    theta_traces_ersp_ga = squeeze(mean(theta_traces_ersp, 1));
-    theta_traces_erst_ga = squeeze(mean(theta_traces_erst, 1));
-    theta_traces_itpc_ga = squeeze(mean(theta_traces_itpc, 1));
-
     % Plot
-    figure
+    figure()
+    ylims = [-15, 15];
 
-    subplot(1, 2, 1)
-    pd = squeeze(theta_traces_ersp_ga(1, 1, :));
-    plot(tf_struct.tf_times, pd, '-k', 'LineWidth', 2.5);
-    hold on;
+    subplot(2, 1, 1)
+    pd = squeeze(theta_traces_erst(:, 1, 2, :)) - squeeze(theta_traces_erst(:, 1, 1, :));
+    plot(tf_struct.tf_times, pd, 'LineWidth', 2.5);
+    ylim(ylims)
+    title('switch- rep in standard')
+    
+    subplot(2, 1, 2)
+    pd = squeeze(theta_traces_erst(:, 2, 2, :)) - squeeze(theta_traces_erst(:, 2, 1, :));
+    plot(tf_struct.tf_times, pd, 'LineWidth', 2.5);
+    ylim(ylims)
+    title('switch- rep in bonus')
 
-    pd = squeeze(theta_traces_ersp_ga(1, 2, :));
+
+    figure()
+    pd = squeeze(mean(squeeze(theta_traces_erst(:, 1, 1, :)), 1));
+    plot(tf_struct.tf_times, pd, 'k', 'LineWidth', 2.5);
+    hold on
+    pd = squeeze(mean(squeeze(theta_traces_erst(:, 1, 2, :)), 1));
     plot(tf_struct.tf_times, pd, ':k', 'LineWidth', 2.5);
 
-    pd = squeeze(theta_traces_ersp_ga(2, 1, :));
-    plot(tf_struct.tf_times, pd, '-m', 'LineWidth', 2.5);
-
-    pd = squeeze(theta_traces_ersp_ga(2, 2, :));
+    pd = squeeze(mean(squeeze(theta_traces_erst(:, 2, 1, :)), 1));
+    plot(tf_struct.tf_times, pd, 'm', 'LineWidth', 2.5);
+    pd = squeeze(mean(squeeze(theta_traces_erst(:, 2, 2, :)), 1));
     plot(tf_struct.tf_times, pd, ':m', 'LineWidth', 2.5);
+    legend({'std-rep', 'std-swi', 'bon-rep', 'bon-swi'})
 
-    subplot(1, 2, 2)
-    pd = squeeze(theta_traces_erst_ga(1, 1, :));
-    plot(tf_struct.tf_times, pd, '-k', 'LineWidth', 2.5);
-    hold on;
-
-    pd = squeeze(theta_traces_erst_ga(1, 2, :));
-    plot(tf_struct.tf_times, pd, ':k', 'LineWidth', 2.5);
-
-    pd = squeeze(theta_traces_erst_ga(2, 1, :));
-    plot(tf_struct.tf_times, pd, '-m', 'LineWidth', 2.5);
-
-    pd = squeeze(theta_traces_erst_ga(2, 2, :));
-    plot(tf_struct.tf_times, pd, ':m', 'LineWidth', 2.5);
-
-    legend({'std-rep', 'std-swi', 'bon-rep', 'bon-swi'});
-    grid on;
 
     % Parameterize time win 1
-    time_win = [200, 400];
+    time_win = [100, 700];
     [~, idx1] = min(abs(tf_struct.tf_times - time_win(1)));
     [~, idx2] = min(abs(tf_struct.tf_times - time_win(2)));
-    params = [mean(squeeze(theta_traces_ersp(:, 1, 1, idx1 : idx2)), 2),...
-              mean(squeeze(theta_traces_ersp(:, 1, 2, idx1 : idx2)), 2),...
-              mean(squeeze(theta_traces_ersp(:, 2, 1, idx1 : idx2)), 2),...
-              mean(squeeze(theta_traces_ersp(:, 2, 2, idx1 : idx2)), 2)];
+    params_win1 = [mean(squeeze(theta_traces_erst(:, 1, 1, idx1 : idx2)), 2),...
+              mean(squeeze(theta_traces_erst(:, 1, 2, idx1 : idx2)), 2),...
+              mean(squeeze(theta_traces_erst(:, 2, 1, idx1 : idx2)), 2),...
+              mean(squeeze(theta_traces_erst(:, 2, 2, idx1 : idx2)), 2)];
 
     % Perform rmANOVA
     varnames = {'id', 'b1', 'b2', 'b3', 'b4'};
-    t = table([1 : numel(subject_list)]', params(:, 1), params(:, 2), params(:, 3), params(:, 4), 'VariableNames', varnames);
+    t = table([1 : numel(subject_list)]', params_win1(:, 1), params_win1(:, 2), params_win1(:, 3), params_win1(:, 4), 'VariableNames', varnames);
     within = table({'std'; 'std'; 'bon'; 'bon'}, {'rep'; 'swi'; 'rep'; 'swi'}, 'VariableNames', {'bonus', 'switch'});
     rm = fitrm(t, 'b1-b4~1', 'WithinDesign', within);
-    res1 = ranova(rm, 'WithinModel', 'bonus + switch + bonus*switch');
-    res1
+    anova_theta1 = ranova(rm, 'WithinModel', 'bonus + switch + bonus*switch');
+    anova_theta1
+
+    figure
+    subplot(1, 3, 1)
+    plot([1,2], params_win1(:, [1,2]), 'LineWidth', 2.5)
+    title('std')
+    subplot(1, 3, 2)
+    plot([1,2], params_win1(:, [3,4]), 'LineWidth', 2.5)
+    title('bonus')
+
+    % Estimate strategies based on frontal theta differences between rep and swi
+    strats = [];
+    for s = 1 : size(params_win1, 1)
+
+        % Both rep more
+        if params_win1(s, 1) > params_win1(s, 2) & params_win1(s, 3) > params_win1(s, 4)
+            strats(s) = 1;
+
+        % Both switch more
+        elseif params_win1(s, 1) < params_win1(s, 2) & params_win1(s, 3) < params_win1(s, 4)
+            strats(s) = 2;
+
+        % Only in std more in switch
+        elseif params_win1(s, 1) < params_win1(s, 2) & params_win1(s, 3) > params_win1(s, 4)
+            strats(s) = 3;
+
+        % Only in bonus more in switch
+        elseif params_win1(s, 1) > params_win1(s, 2) & params_win1(s, 3) < params_win1(s, 4)
+            strats(s) = 4;
+        end
+
+    end
+
+    % Get average behavioral measures for strats
+    rt_by_strats = [mean(rts(strats == 1, :), 1);mean(rts(strats == 2, :), 1);mean(rts(strats == 3, :), 1);mean(rts(strats == 4, :), 1)];
+    accuracy_by_strats = [mean(accuracy(strats == 1, :), 1);mean(accuracy(strats == 2, :), 1);mean(accuracy(strats == 3, :), 1);mean(accuracy(strats == 4, :), 1)];
+    incorrect_by_strats = [mean(incorrect(strats == 1, :), 1);mean(incorrect(strats == 2, :), 1);mean(incorrect(strats == 3, :), 1);mean(incorrect(strats == 4, :), 1)];
+    omissions_by_strats = [mean(omissions(strats == 1, :), 1);mean(omissions(strats == 2, :), 1);mean(omissions(strats == 3, :), 1);mean(omissions(strats == 4, :), 1)];
+
+    figure()
+    subplot(2, 2, 1)
+    scatter(zscore(rts(:, 1)), zscore(accuracy(:, 1)))
+    title('std-rep')
+
+    subplot(2, 2, 2)
+    scatter(zscore(rts(:, 2)), zscore(accuracy(:, 2)))
+    title('std-swi')
+
+    subplot(2, 2, 3)
+    scatter(zscore(rts(:, 3)), zscore(accuracy(:, 3)))
+    title('bon-rep')
+
+    subplot(2, 2, 4)
+    scatter(zscore(rts(:, 4)), zscore(accuracy(:, 4)))
+    title('bon-swi')
+    aa=bb
+
+    % 
+    subj_select = strats == 3 | strats == 4; 
+    diffs_rt_std = zscore(rts(subj_select, 2) - rts(subj_select, 1));
+    diffs_rt_bon = zscore(rts(subj_select, 4) - rts(subj_select, 3));
+    diffs_w1_std = zscore(params_win1(subj_select, 2) - params_win1(subj_select, 1));
+    diffs_w1_bon = zscore(params_win1(subj_select, 4) - params_win1(subj_select, 3));
+
+    [r, pval] = corrcoef(diffs_rt_bon, diffs_w1_bon);
+
+
 
     % Parameterize time win 2
     time_win = [1000, 1200];
     [~, idx1] = min(abs(tf_struct.tf_times - time_win(1)));
     [~, idx2] = min(abs(tf_struct.tf_times - time_win(2)));
-    params = [mean(squeeze(theta_traces_ersp(:, 1, 1, idx1 : idx2)), 2),...
+    params_win2 = [mean(squeeze(theta_traces_ersp(:, 1, 1, idx1 : idx2)), 2),...
               mean(squeeze(theta_traces_ersp(:, 1, 2, idx1 : idx2)), 2),...
               mean(squeeze(theta_traces_ersp(:, 2, 1, idx1 : idx2)), 2),...
               mean(squeeze(theta_traces_ersp(:, 2, 2, idx1 : idx2)), 2)];
 
+    % Perform rmANOVA for rt
+    varnames = {'id', 'b1', 'b2', 'b3', 'b4'};
+    t = table([1 : numel(subject_list)]', rts(:, 1), rts(:, 2), rts(:, 3), rts(:, 4), 'VariableNames', varnames);
+    within = table({'std'; 'std'; 'bon'; 'bon'}, {'rep'; 'swi'; 'rep'; 'swi'}, 'VariableNames', {'bonus', 'switch'});
+    rm = fitrm(t, 'b1-b4~1', 'WithinDesign', within);
+    anova_rt = ranova(rm, 'WithinModel', 'bonus + switch + bonus*switch');
+    anova_rt
+
     % Perform rmANOVA
     varnames = {'id', 'b1', 'b2', 'b3', 'b4'};
-    t = table([1 : numel(subject_list)]', params(:, 1), params(:, 2), params(:, 3), params(:, 4), 'VariableNames', varnames);
+    t = table([1 : numel(subject_list)]', params_win2(:, 1), params_win2(:, 2), params_win2(:, 3), params_win2(:, 4), 'VariableNames', varnames);
     within = table({'std'; 'std'; 'bon'; 'bon'}, {'rep'; 'swi'; 'rep'; 'swi'}, 'VariableNames', {'bonus', 'switch'});
     rm = fitrm(t, 'b1-b4~1', 'WithinDesign', within);
     res2 = ranova(rm, 'WithinModel', 'bonus + switch + bonus*switch');

@@ -99,8 +99,9 @@ for dataset_idx, dataset in enumerate(datasets):
         eeg_epochs_cond = eeg_epochs[condition_idx[cond]]
 
         # Perform time-frequency analysis and apply baseline
-        tf_freqs = np.linspace(2, 30, 50)
-        tf_cycles = np.linspace(3, 14, 50)
+        n_freqs = 20
+        tf_freqs = np.linspace(2, 20, n_freqs)
+        tf_cycles = np.linspace(3, 10, n_freqs)
         power, itc = mne.time_frequency.tfr_morlet(
             eeg_epochs_cond, tf_freqs, n_cycles=tf_cycles, n_jobs=-2, decim=2,
         )

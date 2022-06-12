@@ -175,9 +175,25 @@ if ismember('part2', to_execute)
     load([PATH_TF_DATA, 'tf_freqs.mat']);
     load([PATH_TF_DATA, 'tf_times.mat']);
     load([PATH_TF_DATA, 'ersp.mat']);
+    load([PATH_TF_DATA, 'itpc.mat']);
+
+    ersp=itpc;
 
     % To double
     ersp = double(ersp);
+
+    % Plot theta
+    theta_std_rep = squeeze(mean(squeeze(ersp(:, 1, 1, 127, tf_freqs >= 4 & tf_freqs <= 8, :)), 2));
+    theta_std_swi = squeeze(mean(squeeze(ersp(:, 1, 2, 127, tf_freqs >= 4 & tf_freqs <= 8, :)), 2));
+    theta_bon_rep = squeeze(mean(squeeze(ersp(:, 2, 1, 127, tf_freqs >= 4 & tf_freqs <= 8, :)), 2));
+    theta_bon_swi = squeeze(mean(squeeze(ersp(:, 2, 2, 127, tf_freqs >= 4 & tf_freqs <= 8, :)), 2));
+
+    figure()
+    subplot(2, 2, 1)
+    plot(tf_times, theta_bon_rep, 'LineWidth', 2)
+    title("std-rep")
+
+    aa=bb;
 
     % Exclude
     to_exclude = {'VP10', 'VP28'};
