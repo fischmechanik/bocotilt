@@ -3,10 +3,10 @@ clear all;
 
 % Path variables
 PATH_EEGLAB      = '/home/plkn/eeglab2022.0/';
-PATH_AUTOCLEANED = '/mnt/data2/bocotilt/2_autocleaned/';
-PATH_TF_DATA     = '/mnt/data2/bocotilt/4_ersp/';
-PATH_FIELDTRIP   = '/home/plkn/fieldtrip/';
-PATH_OUT         = '/mnt/data2/bocotilt/4_ersp/out/';
+PATH_AUTOCLEANED = '/mnt/data_dump/bocotilt/2_autocleaned/';
+PATH_TF_DATA     = '/mnt/data_dump/bocotilt/4_ersp/';
+PATH_FIELDTRIP   = '/home/plkn/fieldtrip-master/';
+PATH_OUT         = '/mnt/data_dump/bocotilt/4_ersp/out/';
 
 % Subject list
 subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18',...
@@ -17,7 +17,7 @@ subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 
 %subject_list = {'VP09', 'VP17', 'VP25', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18', 'VP19', 'VP20', 'VP21', 'VP22', 'VP23', 'VP08', 'VP24', 'VP26', 'VP27'};
 
 % SWITCH: Switch parts of script on/off
-to_execute = {'part2'};
+to_execute = {'part1'};
 
 % Part 1: Calculate ersp
 if ismember('part1', to_execute)
@@ -30,23 +30,57 @@ if ismember('part1', to_execute)
     EEG = pop_loadset('filename', [subject_list{1} '_cleaned.set'], 'filepath', PATH_AUTOCLEANED, 'loadmode', 'info');
 
     % Set complex Morlet wavelet parameters
-    n_frq = 15;
+    n_frq = 50;
     frqrange = [2, 20];
     tfres_range = [400, 100];
+
+    % Set wavelet time
+    wtime = -2 : 1 / EEG.srate : 2;
+
+    % Determine fft frqs
+    hz = linspace(0, EEG.srate, length(wtime));
 
     % Create wavelet frequencies and tapering Gaussian widths in temporal domain
     tf_freqs = linspace(frqrange(1), frqrange(2), n_frq);
     fwhmTs = logspace(log10(tfres_range(1)), log10(tfres_range(2)), n_frq);
 
-    % Create wavelets
-    wtime = -2 : 1 / EEG.srate : 2;
+    % Init matrices for wavelets
+    cmw = zeros(length(tf_freqs), length(wtime));
+    cmwX = zeros(length(tf_freqs), length(wtime));
+    tlim = zeros(1, length(tf_freqs));
+
+    % These will contain the wavelet widths as full width at 
+    % half maximum in the temporal and spectral domain
+    obs_fwhmT = zeros(1, length(tf_freqs));
+    obs_fwhmF = zeros(1, length(tf_freqs));
+
+    % Create the wavelets
     for frq = 1 : length(tf_freqs)
+
+        % Create wavelet with tapering gaussian corresponding to desired width in temporal domain
         cmw(frq, :) = exp(2 * 1i * pi * tf_freqs(frq) .* wtime) .* exp((-4 * log(2) * wtime.^2) ./ (fwhmTs(frq) / 1000)^2);
+
+        % Normalize wavelet
         cmw(frq, :) = cmw(frq, :) ./ max(cmw(frq, :));
+
+        % Create normalized freq domain wavelet
+        cmwX(frq, :) = fft(cmw(frq, :)) ./ max(fft(cmw(frq, :)));
+
+        % Determine observed fwhmT
+        midt = dsearchn(wtime', 0);
+        cmw_amp = abs(cmw(frq, :)) ./ max(abs(cmw(frq, :))); % Normalize cmw amplitude
+        obs_fwhmT(frq) = wtime(midt - 1 + dsearchn(cmw_amp(midt : end)', 0.5)) - wtime(dsearchn(cmw_amp(1 : midt)', 0.5));
+
+        % Determine observed fwhmF
+        idx = dsearchn(hz', tf_freqs(frq));
+        cmwx_amp = abs(cmwX(frq, :)); 
+        obs_fwhmF(frq) = hz(idx - 1 + dsearchn(cmwx_amp(idx : end)', 0.5) - dsearchn(cmwx_amp(1 : idx)', 0.5));
+
     end
 
-    % Get tf times
-    tf_times = EEG.times(dsearchn(EEG.times', -500) : dsearchn(EEG.times', 2000));
+    % Define time window of analysis
+    prune_times = [-500, 2000]; 
+    tf_times = EEG.times(dsearchn(EEG.times', prune_times(1)) : dsearchn(EEG.times', prune_times(2)));
 
     % Result struct
     chanlocs = EEG.chanlocs;
@@ -67,7 +101,7 @@ if ismember('part1', to_execute)
         eeg_data = double(EEG.data);
 
         % Exclude trials
-        to_keep = EEG.trialinfo(:, 2) > 4 & EEG.trialinfo(:, 17) == 1 & EEG.trialinfo(:, 22) > 4;
+        to_keep = EEG.trialinfo(:, 2) > 4 & EEG.trialinfo(:, 17) == 1 & EEG.trialinfo(:, 22) > 1;
         eeg_data = eeg_data(:, :, to_keep);
         EEG.trialinfo = EEG.trialinfo(to_keep, :);
         EEG.trials = sum(to_keep);
@@ -81,11 +115,11 @@ if ismember('part1', to_execute)
         % Determine minimal number of trials
         min_n = min([sum(idx_std_rep), sum(idx_std_swi), sum(idx_bon_rep), sum(idx_bon_swi)]);
         
-        % Draw samples
-        idx_std_rep = randsample(idx_std_rep, min_n);
-        idx_std_swi = randsample(idx_std_swi, min_n);
-        idx_bon_rep = randsample(idx_bon_rep, min_n);
-        idx_bon_swi = randsample(idx_bon_swi, min_n);
+        % Draw balanced samples
+        idx_std_rep_balanced = randsample(idx_std_rep, min_n);
+        idx_std_swi_balanced = randsample(idx_std_swi, min_n);
+        idx_bon_rep_balanced = randsample(idx_bon_rep, min_n);
+        idx_bon_swi_balanced = randsample(idx_bon_swi, min_n);
 
         % Loop channels
         for ch = 1 : EEG.nbchan
@@ -119,33 +153,29 @@ if ismember('part1', to_execute)
                 powcube(f, :, :) = abs(as) .^ 2;
                 phacube(f, :, :) = exp(1i * angle(as));     
             end
-
+           
             % Cut edges
             powcube = powcube(:, dsearchn(EEG.times', -500) : dsearchn(EEG.times', 2000), :);
             phacube = phacube(:, dsearchn(EEG.times', -500) : dsearchn(EEG.times', 2000), :);
 
-            % Get baseline values
-            bl_idx = tf_times >= -500 & tf_times <= -200;
-            tmp_std_rep = squeeze(mean(powcube(:, :, idx_std_rep), 3));
-            tmp_std_swi = squeeze(mean(powcube(:, :, idx_std_swi), 3));
-            tmp_bon_rep = squeeze(mean(powcube(:, :, idx_bon_rep), 3));
-            tmp_bon_swi = squeeze(mean(powcube(:, :, idx_bon_swi), 3));
-            blvals_std_rep = squeeze(mean(tmp_std_rep(:, bl_idx), 2));
-            blvals_std_swi = squeeze(mean(tmp_std_swi(:, bl_idx), 2));
-            blvals_bon_rep = squeeze(mean(tmp_bon_rep(:, bl_idx), 2));
-            blvals_bon_swi = squeeze(mean(tmp_bon_swi(:, bl_idx), 2));
+            % Get condition general baseline values
+            ersp_bl = [-500, -200];
+            tmp = squeeze(mean(powcube, 3));
+            [~, blidx1] = min(abs(tf_times - ersp_bl(1)));
+            [~, blidx2] = min(abs(tf_times - ersp_bl(2)));
+            blvals = squeeze(mean(tmp(:, blidx1 : blidx2), 2));
 
             % Calculate ersp
-            ersp(s, 1, 1, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_std_rep), 3)), blvals_std_rep));
-            ersp(s, 1, 2, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_std_swi), 3)), blvals_std_swi));
-            ersp(s, 2, 1, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_bon_rep), 3)), blvals_bon_rep));
-            ersp(s, 2, 2, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_bon_swi), 3)), blvals_bon_swi));
+            ersp(s, 1, 1, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_std_rep), 3)), blvals));
+            ersp(s, 1, 2, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_std_swi), 3)), blvals));
+            ersp(s, 2, 1, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_bon_rep), 3)), blvals));
+            ersp(s, 2, 2, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_bon_swi), 3)), blvals));
 
             % Calculate itpc
-            itpc(s, 1, 1, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_std_rep), 3)));
-            itpc(s, 1, 2, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_std_swi), 3)));
-            itpc(s, 2, 1, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_bon_rep), 3)));
-            itpc(s, 2, 2, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_bon_swi), 3)));
+            itpc(s, 1, 1, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_std_rep_balanced), 3)));
+            itpc(s, 1, 2, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_std_swi_balanced), 3)));
+            itpc(s, 2, 1, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_bon_rep_balanced), 3)));
+            itpc(s, 2, 2, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_bon_swi_balanced), 3)));
 
         end % end channel loop
     end % end subject loop
@@ -176,24 +206,9 @@ if ismember('part2', to_execute)
     load([PATH_TF_DATA, 'tf_times.mat']);
     load([PATH_TF_DATA, 'ersp.mat']);
     load([PATH_TF_DATA, 'itpc.mat']);
-
-    ersp=itpc;
-
+    aa=bb
     % To double
     ersp = double(ersp);
-
-    % Plot theta
-    theta_std_rep = squeeze(mean(squeeze(ersp(:, 1, 1, 127, tf_freqs >= 4 & tf_freqs <= 8, :)), 2));
-    theta_std_swi = squeeze(mean(squeeze(ersp(:, 1, 2, 127, tf_freqs >= 4 & tf_freqs <= 8, :)), 2));
-    theta_bon_rep = squeeze(mean(squeeze(ersp(:, 2, 1, 127, tf_freqs >= 4 & tf_freqs <= 8, :)), 2));
-    theta_bon_swi = squeeze(mean(squeeze(ersp(:, 2, 2, 127, tf_freqs >= 4 & tf_freqs <= 8, :)), 2));
-
-    figure()
-    subplot(2, 2, 1)
-    plot(tf_times, theta_bon_rep, 'LineWidth', 2)
-    title("std-rep")
-
-    aa=bb;
 
     % Exclude
     to_exclude = {'VP10', 'VP28'};

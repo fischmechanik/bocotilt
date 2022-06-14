@@ -11,8 +11,8 @@ import joblib
 import os
 
 # Define paths
-path_in = "/mnt/data2/bocotilt/2_autocleaned/"
-path_out = "/mnt/data2/bocotilt/4_ersp/"
+path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
+path_out = "/mnt/data_dump/bocotilt/4_ersp/"
 
 # Iterate preprocessed datasets
 datasets = glob.glob(f"{path_in}/*cleaned.set")
@@ -99,7 +99,7 @@ for dataset_idx, dataset in enumerate(datasets):
         eeg_epochs_cond = eeg_epochs[condition_idx[cond]]
 
         # Perform time-frequency analysis and apply baseline
-        n_freqs = 20
+        n_freqs = 50
         tf_freqs = np.linspace(2, 20, n_freqs)
         tf_cycles = np.linspace(3, 10, n_freqs)
         power, itc = mne.time_frequency.tfr_morlet(

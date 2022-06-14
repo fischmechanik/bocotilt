@@ -26,7 +26,7 @@ if ismember('part1', to_execute)
     % Set complex Morlet wavelet parameters
     n_frq = 50;
     frqrange = [2, 20];
-    tfres_range = [400, 100];
+    tfres_range = [400, 150];
 
     % Load data info from file
     EEG = pop_loadset('filename', [subject_list{1} '_cleaned.set'], 'filepath', PATH_AUTOCLEANED, 'loadmode', 'info');
@@ -76,7 +76,7 @@ if ismember('part1', to_execute)
     end
 
     % Define time window of analysis
-    prune_times = [-500, 2300]; 
+    prune_times = [-500, 1600]; 
     tf_times = EEG.times(dsearchn(EEG.times', prune_times(1)) : dsearchn(EEG.times', prune_times(2)));
 
     % Loop subjects
@@ -569,6 +569,8 @@ if ismember('part2', to_execute)
     dlmwrite([PATH_VEUSZ, 'apes_std_vs_bon.csv'], main_effect_bonus.apes);
     dlmwrite([PATH_VEUSZ, 'apes_rep_vs_swi.csv'], main_effect_switch.apes);
     dlmwrite([PATH_VEUSZ, 'apes_interaction.csv'], interaction.apes);
+    dlmwrite([PATH_VEUSZ, 'bonus_contour.csv'], main_effect_bonus.outline);
+    dlmwrite([PATH_VEUSZ, 'switch_contour.csv'], main_effect_switch.outline);
     dlmwrite([PATH_VEUSZ, 'interaction_contour.csv'], interaction.outline);
 
 
@@ -614,6 +616,26 @@ if ismember('part2', to_execute)
     incorrect_by_strats = [mean(incorrect(strats == 1, :), 1);mean(incorrect(strats == 2, :), 1);mean(incorrect(strats == 3, :), 1);mean(incorrect(strats == 4, :), 1)];
     omissions_by_strats = [mean(omissions(strats == 1, :), 1);mean(omissions(strats == 2, :), 1);mean(omissions(strats == 3, :), 1);mean(omissions(strats == 4, :), 1)];
     subthresh_by_strats = [mean(subthresh(strats == 1, :), 1);mean(subthresh(strats == 2, :), 1);mean(subthresh(strats == 3, :), 1);mean(subthresh(strats == 4, :), 1)];
+
+    % Save behavioral data for veusz
+    rt_mean = mean(rts, 1);
+    rt_sd = std(rts, [], 1);
+    rt_out = [rt_mean(1), rt_sd(1), rt_mean(3), rt_sd(3); rt_mean(2), rt_sd(2), rt_mean(4), rt_sd(4)];
+    dlmwrite([PATH_VEUSZ, 'rt_out.csv'], rt_out, 'delimiter', '\t');
+
+    acc_mean = mean(accuracy, 1);
+    acc_sd = std(accuracy, [], 1);
+    acc_out = [acc_mean(1), acc_sd(1), acc_mean(3), acc_sd(3); acc_mean(2), acc_sd(2), acc_mean(4), acc_sd(4)];
+    dlmwrite([PATH_VEUSZ, 'acc_out.csv'], acc_out, 'delimiter', '\t');
+
+    points_mean = mean(subthresh, 1);
+    points_sd = std(subthresh, [], 1);
+    points_out = [points_mean(1), points_sd(1), points_mean(3), points_sd(3); points_mean(2), points_sd(2), points_mean(4), points_sd(4)];
+    dlmwrite([PATH_VEUSZ, 'points_out.csv'], points_out, 'delimiter', '\t');
+
+    dlmwrite([PATH_VEUSZ, 'xax.csv'], [1; 2]);
+
+
 
     aa=bb
 

@@ -8,7 +8,7 @@ import joblib
 import numpy as np
 import sklearn.model_selection
 import sklearn.metrics
-import sklearn.linear_model
+import sklearn.svm
 import sklearn.decomposition
 import mne
 import time
@@ -19,8 +19,8 @@ import imblearn
 os.environ["JOBLIB_TEMP_FOLDER"] = "/tmp"
 
 # Define paths
-path_in = "/mnt/data2/bocotilt/2_autocleaned/"
-path_out = "/mnt/data2/bocotilt/3_decoded_logistic_regression/"
+path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
+path_out = "/mnt/data_dump/bocotilt/3_decoded/"
 
 # Function for bootstrapping averages
 def do_some_binning(data_in, n_batch, n_averages):
@@ -33,7 +33,7 @@ def do_some_binning(data_in, n_batch, n_averages):
 
 
 # Function performing random forest classification
-def logistic_regresion_classification_binning(X, y, combined_codes):
+def svm_classification_binning(X, y, combined_codes):
 
     # Oversampler
     oversampler = imblearn.over_sampling.RandomOverSampler(
@@ -45,7 +45,7 @@ def logistic_regresion_classification_binning(X, y, combined_codes):
     kf = sklearn.model_selection.StratifiedKFold(n_splits=n_splits)
 
     # Init classifier
-    clf = sklearn.linear_model.LogisticRegression(random_state=86)
+    clf = sklearn.svm.LinearSVC()
 
     # Arrays for results
     acc = 0
@@ -250,7 +250,7 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
         )
 
         # Train model
-        acc[model_nr] = logistic_regresion_classification_binning(X, y, combined_codes)
+        acc[model_nr] = svm_classification_binning(X, y, combined_codes)
 
     return {
         "decode_labels": decode_labels,

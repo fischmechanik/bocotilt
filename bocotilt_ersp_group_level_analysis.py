@@ -14,8 +14,8 @@ from cool_colormaps import cga_p1_dark as ccm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # Define paths
-path_in = "/mnt/data2/bocotilt/4_ersp/"
-path_clean_data = "/mnt/data2/bocotilt/2_autocleaned/"
+path_in = "/mnt/data_dump/bocotilt/4_ersp/"
+path_clean_data = "/mnt/data_dump/bocotilt/2_autocleaned/"
 
 # Load data
 fn = os.path.join(path_in, "tf_datasets_task_switch_bonus.joblib")
@@ -100,7 +100,7 @@ F_obs, cluster, cluster_pv, H0 = mne.stats.permutation_cluster_test(
     verbose=None,
 )
 
-good_cluster_inds = np.where(cluster_pv < 0.5)[0]
+good_cluster_inds = np.where(cluster_pv < 0.7)[0]
 
 for i_clu, clu_idx in enumerate(good_cluster_inds):
     

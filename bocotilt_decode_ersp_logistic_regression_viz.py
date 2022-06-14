@@ -14,7 +14,7 @@ import numpy as np
 import mne
 
 # Path decoding data
-path_in = "/mnt/data2/bocotilt/3_decoded_logistic_regression/"
+path_in = "/mnt/data_dump/bocotilt/3_decoded/"
 
 # Get list of datasets
 datasets = glob.glob(f"{path_in}/*.joblib")
@@ -111,14 +111,14 @@ def plot_decoding_result(
     ax1.legend()
 
     # Plot statistics
-    # for i_c, c in enumerate(clusters_bon):
-    #    c = c[0]
-    #    if cluster_p_values[i_c] <= 0.05:
-    #        h = ax2.axvspan(times[c.start], times[c.stop - 1], color="g", alpha=0.3)
-    #    else:
-    #        ax2.axvspan(
-    #            times[c.start], times[c.stop - 1], color=(0.3, 0.3, 0.3), alpha=0.3
-    #        )
+    for i_c, c in enumerate(clusters_bon):
+        c = c[0]
+        if cluster_p_values[i_c] <= 0.05:
+            h = ax2.axvspan(times[c.start], times[c.stop - 1], color="g", alpha=0.3)
+        else:
+            ax2.axvspan(
+                times[c.start], times[c.stop - 1], color=(0.3, 0.3, 0.3), alpha=0.3
+            )
 
     # hf = plt.plot(times, T_obs_bon, "m")
     # ax2.legend((h,), ("cluster p-value < 0.05",))
@@ -190,10 +190,10 @@ times = data["tf_times"][smowin - 1 :]
 
 # Plot
 plot_decoding_result(
-    distractor_std_rep,
-    distractor_std_swi,
-    distractor_bon_rep,
-    distractor_bon_swi,
+    cue_bon_swi,
+    cue_std_rep,
+    cue_std_swi,
+    cue_bon_rep,
     decode_label="stuff",
     f_thresh=2.0,
 )
