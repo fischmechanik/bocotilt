@@ -1,4 +1,4 @@
-function[EEG] = bocotilt_event_coding(EEG, RESPS, positions, trial_log)
+function[EEG] = bocotilt_event_coding(EEG, RESPS, positions, trial_log, rt_thresh_color, rt_thresh_tilt)
 
     % Struct for new events
     nec = 0;
@@ -113,36 +113,6 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions, trial_log)
                 correct_response = correct_green;
             end
 
-            % Lookup response
-            left_rt = min(find(resps_left(EEG.event(e).latency + 800 : EEG.event(e).latency + 800 + (maxrt / (1000 / EEG.srate))) >= critval_responses)) * (1000 / EEG.srate);
-            right_rt = min(find(resps_right(EEG.event(e).latency + 800 : EEG.event(e).latency + 800 + (maxrt / (1000 / EEG.srate))) >= critval_responses)) * (1000 / EEG.srate);
-            if isempty(left_rt) & isempty(right_rt)
-                rt = NaN;
-                response_side = 2;
-            elseif isempty(left_rt)
-                rt = right_rt;
-                response_side = 1;
-            elseif isempty(right_rt)
-                rt = left_rt;
-                response_side = 0;
-            else
-                [rt, resp_idx] = min([left_rt, right_rt]);
-                if resp_idx == 1
-                    response_side = 0;
-                else
-                    response_side = 1;
-                end
-            end
-
-            % Accuracy
-            if response_side == 2
-                acc = 2;
-            elseif response_side == correct_response
-                acc = 1;
-            else
-                acc = 0;
-            end
-
             % Create event
             nec = nec + 1;
             new_events(nec).latency = EEG.event(e).latency;
@@ -160,41 +130,40 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions, trial_log)
             new_events(nec).response_interference = response_interference;
             new_events(nec).task_switch = task_switch;
             new_events(nec).correct_response = correct_response;
-            new_events(nec).response_side = response_side;
-            new_events(nec).rt = rt;
-            new_events(nec).accuracy = acc;
             new_events(nec).position_color = positions(trial_nr, 1);
             new_events(nec).position_tilt = positions(trial_nr, 2);
+            new_events(nec).rt_thresh_color = rt_thresh_color;
+            new_events(nec).rt_thresh_tilt = rt_thresh_tilt;
 
             % Code log response side
             if trial_log(trial_nr, 1) == 0
-                log_response_side = 2;
+                response_side = 2;
             elseif trial_log(trial_nr, 1) == 1
-                log_response_side = 0;
+                response_side = 0;
             elseif trial_log(trial_nr, 1) == 2
-                log_response_side = 1;
+                response_side = 1;
             end
-            new_events(nec).log_response_side = log_response_side;
+            new_events(nec).response_side = response_side;
 
             % Code log rt
-            log_rt = trial_log(trial_nr, 3);
-            if log_rt == -1
-                log_rt = NaN;
+            rt = trial_log(trial_nr, 3);
+            if rt == -1
+                rt = NaN;
             end
-            if log_rt > maxrt
-                log_rt = NaN;
+            if rt > maxrt
+                rt = NaN;
             end
-            new_events(nec).log_rt = log_rt;
+            new_events(nec).rt = rt;
 
-            % Code log accuracy
-            log_accuracy = trial_log(trial_nr, 2);
-            if log_accuracy == 3
-                log_accuracy = 2;
+            % Code accuracy
+            accuracy = trial_log(trial_nr, 2);
+            if accuracy == 3
+                accuracy = 2;
             end
-            if isnan(log_rt)
-                log_accuracy = 2;
+            if isnan(rt)
+                accuracy = 2;
             end
-            new_events(nec).log_accuracy = log_accuracy;
+            new_events(nec).accuracy = accuracy;
             
             if tilt_task == 0
                 new_events(nec).position_target = new_events(nec).position_color;
@@ -239,60 +208,57 @@ function[EEG] = bocotilt_event_coding(EEG, RESPS, positions, trial_log)
         current_block = new_events(e).block_nr;
         if current_block ~= old_block
 
-            % If not first block, fill previous sequence with values
-            if old_block ~= 0
-                for f = sequence_start : e - 1
-                    new_events(f).sequence_length = sequence_length;
-                end
-            end
-
             old_block = current_block;
-            sequence_length = 1;
             sequence_position = 1;
+            new_events(e).task_switch = -1;
             sequence_start = e;
             previous_type = new_events(e).bonustrial;
             current_type = new_events(e).bonustrial;
+
+            switch_prev = -1;
+            switch_before = new_events(e).task_switch;
+
+            acc_prev = -1;
+            acc_before = new_events(e).accuracy;
 
         % If block does not change
         else
 
             % If sequence continues
             current_type = new_events(e).bonustrial;
+
             if current_type == previous_type
-                sequence_length = sequence_length + 1;
+
                 sequence_position = sequence_position + 1;
                 previous_type = new_events(e).bonustrial;
+
+                switch_prev = switch_before;
+                switch_before = new_events(e).task_switch;
+
+                acc_prev = acc_before;
+                acc_before = new_events(e).accuracy;
 
             % If sequence does not continue
             else
 
-                % Fill previous sequence with values
-                for f = sequence_start : e - 1
-                    new_events(f).sequence_length = sequence_length;
-                end
-
                 % Reset sequence parameters
-                sequence_length = 1;
                 sequence_position = 1;
+                new_events(e).task_switch = -1;
                 sequence_start = e;
                 previous_type = new_events(e).bonustrial;
+
+                switch_prev = -1;
+                switch_before = new_events(e).task_switch;
+
+                acc_prev = -1;
+                acc_before = new_events(e).accuracy;
             end
             
         end
 
-        % If first in sequence, adjust task-switch to undefined
-        if sequence_position == 1
-            new_events(e).task_switch = -1;
-        end
-
         new_events(e).sequence_position = sequence_position;
-
-        % Write length of last sequence
-        if tidx == trial_idx(end)
-            for f = sequence_start : e
-                new_events(f).sequence_length = sequence_length;
-            end
-        end
+        new_events(e).prev_accuracy = acc_prev;
+        new_events(e).prev_switch = switch_prev;
 
     end
 
