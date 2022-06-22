@@ -38,8 +38,33 @@ if ismember('part1', to_execute)
         % To double precision
         eeg_data = double(EEG.data);
 
+        %  1: id
+        %  2: block_nr
+        %  3: trial_nr
+        %  4: bonustrial
+        %  5: tilt_task
+        %  6: cue_ax
+        %  7: target_red_left
+        %  8: distractor_red_left
+        %  9: response_interference
+        % 10: task_switch
+        % 11: prev_switch
+        % 12: prev_accuracy
+        % 13: correct_response
+        % 14: response_side
+        % 15: rt
+        % 16: rt_thresh_color
+        % 17: rt_thresh_tilt
+        % 18: accuracy
+        % 19: position_color
+        % 20: position_tilt
+        % 21: position_target
+        % 22: position_distractor    
+        % 23: sequence_position
+        
+        
         % Exclude trials
-        to_keep = EEG.trialinfo(:, 2) > 4 & EEG.trialinfo(:, 17) == 1 & EEG.trialinfo(:, 22) > 1 & EEG.trialinfo(:, 22) < 8;
+        to_keep = EEG.trialinfo(:, 2) > 4 & EEG.trialinfo(:, 18) == 1 & EEG.trialinfo(:, 10) ~= -1 & EEG.trialinfo(:, 11) ~= -1;
         eeg_data = eeg_data(:, :, to_keep);
         EEG.trialinfo = EEG.trialinfo(to_keep, :);
         EEG.trials = sum(to_keep);
@@ -205,7 +230,6 @@ if ismember('part1', to_execute)
 
         end
 
-        % Trialinfo columns:
         %  1: id
         %  2: block_nr
         %  3: trial_nr
@@ -216,30 +240,23 @@ if ismember('part1', to_execute)
         %  8: distractor_red_left
         %  9: response_interference
         % 10: task_switch
-        % 11: correct_response
-        % 12: response_side
-        % 13: rt
-        % 14: accuracy
-        % 15: log_response_side
-        % 16: log_rt
-        % 17: log_accuracy
-        % 18: position_color
-        % 19: position_tilt
-        % 20: position_target
-        % 21: position_distractor
-        % 22: sequence_position
-        % 23: sequence_length
-        % 24: block_binarized
-
-        % Getting some nice indices
-        idx_std_rep = EEG.trialinfo(:, 4) == 0 & EEG.trialinfo(:, 10) == 0;
-        idx_std_swi = EEG.trialinfo(:, 4) == 0 & EEG.trialinfo(:, 10) == 1;
-        idx_bon_rep = EEG.trialinfo(:, 4) == 1 & EEG.trialinfo(:, 10) == 0;
-        idx_bon_swi = EEG.trialinfo(:, 4) == 1 & EEG.trialinfo(:, 10) == 1;
+        % 11: prev_switch
+        % 12: prev_accuracy
+        % 13: correct_response
+        % 14: response_side
+        % 15: rt
+        % 16: rt_thresh_color
+        % 17: rt_thresh_tilt
+        % 18: accuracy
+        % 19: position_color
+        % 20: position_tilt
+        % 21: position_target
+        % 22: position_distractor    
+        % 23: sequence_position
 
         % Some viz
         figure('Visible', 'off'); clf;
-        n_cols = 3;
+        n_cols = 2;
         n_rows = 8;
         for cmp = 1 : n_rows
 
@@ -265,19 +282,6 @@ if ismember('part1', to_execute)
             plot(EEG.times, pd, 'LineWidth', 1.5)
             xline(0)
 
-            % Plot component theta time series
-            subplot(n_rows, n_cols, fig_idx_offset + 3)
-            pd_std_rep = mean(squeeze(ged_time_series_theta(cmp, :, idx_std_rep)), 2);
-            pd_std_swi = mean(squeeze(ged_time_series_theta(cmp, :, idx_std_swi)), 2);
-            pd_bon_rep = mean(squeeze(ged_time_series_theta(cmp, :, idx_bon_rep)), 2);
-            pd_bon_swi = mean(squeeze(ged_time_series_theta(cmp, :, idx_bon_swi)), 2);
-
-            plot(times, pd_std_rep, 'LineWidth', 1.5)
-            hold on
-            plot(times, pd_std_swi, 'LineWidth', 1.5)
-            plot(times, pd_bon_rep, 'LineWidth', 1.5)
-            plot(times, pd_bon_swi, 'LineWidth', 1.5)
-            xline(0)
         end
 
         % Save figure
@@ -364,6 +368,7 @@ if ismember('part2', to_execute)
     tf_result.fwhmTs = fwhmTs;
     tf_result.ersp = {};
     tf_result.subjects = {};
+    tf_result.trialcount = [];
 
     % Loop subjects
     for s = 1 : length(subject_list)
@@ -432,27 +437,59 @@ if ismember('part2', to_execute)
 
         % Get condition general baseline values
         bl_idx = prune_time >= -500 & prune_time <= -200;
-        bl_vals = squeeze(mean(powcube, 3));
+        bl_vals = squeeze(mean(powcube(:, bl_idx, :), [2, 3]));
+   
+        %  1: id
+        %  2: block_nr
+        %  3: trial_nr
+        %  4: bonustrial
+        %  5: tilt_task
+        %  6: cue_ax
+        %  7: target_red_left
+        %  8: distractor_red_left
+        %  9: response_interference
+        % 10: task_switch
+        % 11: prev_switch
+        % 12: prev_accuracy
+        % 13: correct_response
+        % 14: response_side
+        % 15: rt
+        % 16: rt_thresh_color
+        % 17: rt_thresh_tilt
+        % 18: accuracy
+        % 19: position_color
+        % 20: position_tilt
+        % 21: position_target
+        % 22: position_distractor    
+        % 23: sequence_position
 
         % Calculate averages for conditions
-        ersp = zeros(2, 2, size(powcube, 1), size(powcube, 2));
+        ersp_2fac_ = zeros(2, 2, 2, size(powcube, 1), size(powcube, 2));
+        ersp_3fac = zeros(2, 2, 2, size(powcube, 1), size(powcube, 2));
+        condcount = 0;
         for bon = 1 : 2
             for swi = 1 : 2
+                for swip = 1 : 2
 
-                % Get trial idx
-                trial_idx = find(result.trialinfo(:, 4) == bon - 1 & result.trialinfo(:, 10) == swi - 1);
+                    % Get trial idx
+                    trial_idx = find(result.trialinfo(:, 4) == bon - 1 & result.trialinfo(:, 10) == swi - 1 & result.trialinfo(:, 11) == swip - 1 & result.trialinfo(:, 12) == 1 & result.trialinfo(:, 18) == 1);
 
-                % Get condition mean of power
-                condition_mean_power = squeeze(mean(powcube(:, :, trial_idx), 3));
+                    % Get condition mean of power
+                    condition_mean_power = squeeze(mean(powcube(:, :, trial_idx), 3));
 
-                % Calculate ersp
-                ersp(bon, swi, :, :) = 10 * log10(bsxfun(@rdivide, condition_mean_power, bl_vals));
-                
+                    % Calculate ersp_3fac
+                    ersp_3fac(bon, swi, swip, :, :) = 10 * log10(bsxfun(@rdivide, condition_mean_power, bl_vals));
+
+                    % Save n
+                    condcount = condcount + 1;
+                    tf_result.trialcount(s, condcount) = length(trial_idx);
+
+                end
             end
         end
 
         % Copy to results
-        tf_result.ersp{end + 1} = ersp;
+        tf_result.ersp_3fac{end + 1} = ersp_3fac;
 
     end % End subject loop
 
@@ -469,51 +506,133 @@ if ismember('part3', to_execute)
     % Load tf results
     load([PATH_GED, 'tf_results.mat']);
 
-    % Concatenate tf data. Dims: bonus, switch, freqs, times, subjects
-    ersps = cat(5, tf_result.ersp{:});
+    % Concatenate tf data. Dims: bonus, switch, switch_prev, freqs, times, subjects
+    ersps = cat(6, tf_result.ersp{:});
 
     % Get condition data
-    ersp_std_rep = permute(squeeze(ersps(1, 1, :, :, :)), [3, 1, 2]);
-    ersp_std_swi = permute(squeeze(ersps(1, 2, :, :, :)), [3, 1, 2]);
-    ersp_bon_rep = permute(squeeze(ersps(2, 1, :, :, :)), [3, 1, 2]);
-    ersp_bon_swi = permute(squeeze(ersps(2, 2, :, :, :)), [3, 1, 2]);
+    ersp_std_rr = permute(squeeze(ersps(1, 1, 1, :, :, :)), [3, 1, 2]);
+    ersp_std_rs = permute(squeeze(ersps(1, 2, 1, :, :, :)), [3, 1, 2]);
+    ersp_std_sr = permute(squeeze(ersps(1, 1, 2, :, :, :)), [3, 1, 2]);
+    ersp_std_ss = permute(squeeze(ersps(1, 2, 2, :, :, :)), [3, 1, 2]);
+    ersp_bon_rr = permute(squeeze(ersps(2, 1, 1, :, :, :)), [3, 1, 2]);
+    ersp_bon_rs = permute(squeeze(ersps(2, 2, 1, :, :, :)), [3, 1, 2]);
+    ersp_bon_sr = permute(squeeze(ersps(2, 1, 2, :, :, :)), [3, 1, 2]);
+    ersp_bon_ss = permute(squeeze(ersps(2, 2, 2, :, :, :)), [3, 1, 2]);
 
     % Matrix for theta traces
     theta_ersp_traces = [];
+    theta_traces_anova = [];
 
     % Plot ersp and calculate theta traces
     bonus_labels = {'std', 'bonus'};
     switch_labels = {'repeat', 'switch'};
+    switch_prev_labels = {'prev-repeat', 'prev-switch'};
     figure()
     counter = 0;
 
     for bon = 1 : 2
         for swi = 1 : 2
+            for swip = 1 : 2
 
-            counter = counter + 1;
+                counter = counter + 1;
 
-            % Plot data
-            pd_ersp = squeeze(mean(squeeze(ersps(bon, swi, :, :, :)), 3));
+                % Plot data
+                pd_ersp = squeeze(mean(squeeze(ersps(bon, swi, swip, :, :, :)), 3));
 
 
-            subplot(2, 2, counter)
-            contourf(tf_result.tf_time, tf_result.tf_freqs, pd_ersp, 40, 'linecolor','none')
-            colormap('jet')
-            set(gca, 'clim', [-1, 1], 'YScale', 'lin', 'YTick', [4, 8, 12, 20])
+                subplot(2, 4, counter)
+                contourf(tf_result.tf_time, tf_result.tf_freqs, pd_ersp, 40, 'linecolor','none')
+                colormap('jet')
+                set(gca, 'clim', [-3, 3], 'YScale', 'lin', 'YTick', [4, 8, 12, 20])
 
-            titlestring = ['bon: ', num2str(bon), ' - swi: ', num2str(swi)];
-            title(titlestring, 'FontSize', 10);
+                titlestring = ['bon: ', num2str(bon), ' - swi: ', num2str(swi), ' - prevswi: ', num2str(swip)];
+                title(titlestring, 'FontSize', 10);
 
-            % get theta_trace
-            theta_idx = tf_result.tf_freqs >= 4 & tf_result.tf_freqs <= 8;
-            theta_ersp_traces(counter, :) = mean(pd_ersp(theta_idx, :), 1);
+                % get theta_trace
+                theta_idx = tf_result.tf_freqs >= 4 & tf_result.tf_freqs <= 8;
+                theta_ersp_traces(counter, :) = mean(pd_ersp(theta_idx, :), 1);
 
+                tmp = squeeze(mean(squeeze(ersps(bon, swi, swip, :, :, :)), 1));
+                theta_traces_anova(:, bon, swi, swip, :) = tmp';
+            end
         end
     end
 
+
+
+
+    % Parameterize time win 1
+    time_win1 = [200, 600];
+    [~, idx1] = min(abs(tf_result.tf_time - time_win1(1)));
+    [~, idx2] = min(abs(tf_result.tf_time - time_win1(2)));
+    params_win1 = [mean(squeeze(theta_traces_anova(:, 2, 1, 1, idx1 : idx2)), 2),...
+                   mean(squeeze(theta_traces_anova(:, 2, 1, 2, idx1 : idx2)), 2),...
+                   mean(squeeze(theta_traces_anova(:, 2, 2, 1, idx1 : idx2)), 2),...
+                   mean(squeeze(theta_traces_anova(:, 2, 2, 2, idx1 : idx2)), 2)...
+                   mean(squeeze(theta_traces_anova(:, 1, 1, 1, idx1 : idx2)), 2),...
+                   mean(squeeze(theta_traces_anova(:, 1, 1, 2, idx1 : idx2)), 2),...
+                   mean(squeeze(theta_traces_anova(:, 1, 2, 1, idx1 : idx2)), 2),...
+                   mean(squeeze(theta_traces_anova(:, 1, 2, 2, idx1 : idx2)), 2)];
+
+    % Parameterize time win 2
+    time_win2 = [900, 1300];
+    [~, idx1] = min(abs(tf_result.tf_time - time_win2(1)));
+    [~, idx2] = min(abs(tf_result.tf_time - time_win2(2)));
+    params_win2 = [mean(squeeze(theta_traces_anova(:, 2, 1, 1, idx1 : idx2)), 2),...
+                   mean(squeeze(theta_traces_anova(:, 2, 1, 2, idx1 : idx2)), 2),...
+                   mean(squeeze(theta_traces_anova(:, 2, 2, 1, idx1 : idx2)), 2),...
+                   mean(squeeze(theta_traces_anova(:, 2, 2, 2, idx1 : idx2)), 2)...
+                   mean(squeeze(theta_traces_anova(:, 1, 1, 1, idx1 : idx2)), 2),...
+                   mean(squeeze(theta_traces_anova(:, 1, 1, 2, idx1 : idx2)), 2),...
+                   mean(squeeze(theta_traces_anova(:, 1, 2, 1, idx1 : idx2)), 2),...
+                   mean(squeeze(theta_traces_anova(:, 1, 2, 2, idx1 : idx2)), 2)];
+
+aa=bb
+
+    % Perform rmANOVA for rt
+    varnames = {'id', 'std_rr', 'std_sr', 'std_rs', 'std_ss', 'bon_rr', 'bon_sr', 'bon_rs', 'bon_ss'};
+    t = table([1 : numel(subject_list)]', params_win1(:, 1), params_win1(:, 2), params_win1(:, 3), params_win1(:, 4), params_win1(:, 5), params_win1(:, 6), params_win1(:, 7), params_win1(:, 8), 'VariableNames', varnames);
+
+    within = table({'std'; 'std'; 'std'; 'std'; 'bon'; 'bon'; 'bon'; 'bon'},...
+                   {'crp'; 'crp'; 'csw'; 'csw'; 'crp'; 'crp'; 'csw'; 'csw'},...
+                   {'prp'; 'psw'; 'prp'; 'psw'; 'prp'; 'psw'; 'prp'; 'psw'},...
+                   'VariableNames', {'bonus', 'current', 'prev'});
+
+
+    rm = fitrm(t, 'std_rr-bon_ss~1', 'WithinDesign', within);
+    anova_theta1 = ranova(rm, 'WithinModel', 'bonus + current + prev + bonus*current*prev');
+    anova_theta1
+
+
+
+
+    % Plot theta traces
+    figure()
+    pd = theta_ersp_traces(1, :);
+    plot(tf_result.tf_time, pd, 'c-', 'LineWidth', 2.5);
+    hold on
+    pd = theta_ersp_traces(2, :);
+    plot(tf_result.tf_time, pd, 'c:', 'LineWidth', 2.5);
+    pd = theta_ersp_traces(3, :);
+    plot(tf_result.tf_time, pd, 'b-', 'LineWidth', 2.5);
+    pd = theta_ersp_traces(4, :);
+    plot(tf_result.tf_time, pd, 'b:', 'LineWidth', 2.5);
+    pd = theta_ersp_traces(5, :);
+    plot(tf_result.tf_time, pd, 'm-', 'LineWidth', 2.5);
+    pd = theta_ersp_traces(6, :);
+    plot(tf_result.tf_time, pd, 'm:', 'LineWidth', 2.5);
+    pd = theta_ersp_traces(7, :);
+    plot(tf_result.tf_time, pd, 'r-', 'LineWidth', 2.5);
+    pd = theta_ersp_traces(8, :);
+    plot(tf_result.tf_time, pd, 'r:', 'LineWidth', 2.5);
+
+    title('Theta')
+    legend({'std-rr', 'std-sr', 'std-rs', 'std-ss', 'bon-rr', 'bon-sr', 'bon-rs', 'bon-ss'})
+
+
     % Main effect bonus
-    data1 = (ersp_std_rep + ersp_std_swi) / 2;
-    data2 = (ersp_bon_rep + ersp_bon_swi) / 2;
+    data1 = (ersp_std_rr + ersp_std_rs + ersp_std_sr + ersp_std_ss) / 4;
+    data2 = (ersp_bon_rr + ersp_bon_rs + ersp_bon_sr + ersp_bon_ss) / 4;
     main_effect_bonus = struct();
     [main_effect_bonus.sig_flag,...
         main_effect_bonus.ave1,...
@@ -536,9 +655,9 @@ if ismember('part3', to_execute)
     set(gca, 'clim', [-0.5, 0.5], 'YScale', 'lin', 'YTick', [4, 8, 12, 20])
     title('Main effect bonus')
 
-    % Main effect switch
-    data1 = (ersp_std_rep + ersp_bon_rep) / 2;
-    data2 = (ersp_std_swi + ersp_bon_swi) / 2;
+    % Main effect switch previous
+    data1 = (ersp_std_rr + ersp_std_rs + ersp_bon_rr + ersp_bon_rs) / 4;
+    data2 = (ersp_std_sr + ersp_std_ss + ersp_bon_sr + ersp_bon_ss) / 4;
     main_effect_switch = struct();
     [main_effect_switch.sig_flag,...
         main_effect_switch.ave1,...
@@ -559,11 +678,37 @@ if ismember('part3', to_execute)
     colorbar
     colormap('jet')
     set(gca, 'clim', [-0.5, 0.5], 'YScale', 'lin', 'YTick', [4, 8, 12, 20])
-    title('Main effect switch')
+    title('Main effect switch previous')
 
-    % Interaction
-    data1 = ersp_std_rep - ersp_std_swi;
-    data2 = ersp_bon_rep - ersp_bon_swi;
+
+    % Main effect switch current
+    data1 = (ersp_std_rr + ersp_std_sr + ersp_bon_rr + ersp_bon_sr) / 4;
+    data2 = (ersp_std_rs + ersp_std_ss + ersp_bon_rs + ersp_bon_ss) / 4;
+    main_effect_switch = struct();
+    [main_effect_switch.sig_flag,...
+        main_effect_switch.ave1,...
+        main_effect_switch.ave2,...
+        main_effect_switch.outline,...
+        main_effect_switch.apes,...
+        main_effect_switch.clust_sumt,...
+        main_effect_switch.clust_pvals,...
+        main_effect_switch.clust_apes,...
+        main_effect_switch.time_limits,...
+        main_effect_switch.freq_limits,...
+        main_effect_switch.cluster_idx] = cluststats_2d_data(data1, data2, tf_result.tf_time, tf_result.tf_freqs);
+
+    figure()
+    contourf(tf_result.tf_time, tf_result.tf_freqs, main_effect_switch.apes, 50, 'linecolor','none')
+    hold on
+    contour(tf_result.tf_time, tf_result.tf_freqs, main_effect_switch.outline, 1, 'linecolor', 'k', 'LineWidth', 2)
+    colorbar
+    colormap('jet')
+    set(gca, 'clim', [-0.5, 0.5], 'YScale', 'lin', 'YTick', [4, 8, 12, 20])
+    title('Main effect switch current')
+
+    % Interaction bon switch-prev
+    data1 = ((ersp_std_rr + ersp_std_rs) / 2) - ((ersp_bon_rr + ersp_bon_rs) / 2);
+    data2 = ((ersp_std_sr + ersp_std_ss) / 2) - ((ersp_bon_sr + ersp_bon_ss) / 2);
     interaction_effect = struct();
     [interaction_effect.sig_flag,...
         interaction_effect.ave1,...
@@ -584,7 +729,88 @@ if ismember('part3', to_execute)
     colorbar
     colormap('jet')
     set(gca, 'clim', [-0.5, 0.5], 'YScale', 'lin', 'YTick', [4, 8, 12, 20])
-    title('interaction')
+    title('Interaction bonus x switch-prev')
+
+    % Interaction bon switch-current
+    data1 = ((ersp_std_rr + ersp_std_sr) / 2) - ((ersp_bon_rr + ersp_bon_sr) / 2);
+    data2 = ((ersp_std_rs + ersp_std_ss) / 2) - ((ersp_bon_rs + ersp_bon_ss) / 2);
+    interaction_effect = struct();
+    [interaction_effect.sig_flag,...
+        interaction_effect.ave1,...
+        interaction_effect.ave2,...
+        interaction_effect.outline,...
+        interaction_effect.apes,...
+        interaction_effect.clust_sumt,...
+        interaction_effect.clust_pvals,...
+        interaction_effect.clust_apes,...
+        interaction_effect.time_limits,...
+        interaction_effect.freq_limits,...
+        interaction_effect.cluster_idx] = cluststats_2d_data(data1, data2, tf_result.tf_time, tf_result.tf_freqs);
+
+    figure()
+    contourf(tf_result.tf_time, tf_result.tf_freqs, interaction_effect.apes, 50, 'linecolor','none')
+    hold on
+    contour(tf_result.tf_time, tf_result.tf_freqs, interaction_effect.outline, 1, 'linecolor', 'k', 'LineWidth', 2)
+    colorbar
+    colormap('jet')
+    set(gca, 'clim', [-0.5, 0.5], 'YScale', 'lin', 'YTick', [4, 8, 12, 20])
+    title('Interaction bonus x switch-current')
+
+    % Interaction switch-current x switch-prev
+    data1 = ((ersp_std_rr + ersp_bon_rr) / 2) - ((ersp_std_sr + ersp_bon_sr) / 2);
+    data2 = ((ersp_std_rs + ersp_bon_rs) / 2) - ((ersp_std_ss + ersp_bon_ss) / 2);
+    interaction_effect = struct();
+    [interaction_effect.sig_flag,...
+        interaction_effect.ave1,...
+        interaction_effect.ave2,...
+        interaction_effect.outline,...
+        interaction_effect.apes,...
+        interaction_effect.clust_sumt,...
+        interaction_effect.clust_pvals,...
+        interaction_effect.clust_apes,...
+        interaction_effect.time_limits,...
+        interaction_effect.freq_limits,...
+        interaction_effect.cluster_idx] = cluststats_2d_data(data1, data2, tf_result.tf_time, tf_result.tf_freqs);
+
+    figure()
+    contourf(tf_result.tf_time, tf_result.tf_freqs, interaction_effect.apes, 50, 'linecolor','none')
+    hold on
+    contour(tf_result.tf_time, tf_result.tf_freqs, interaction_effect.outline, 1, 'linecolor', 'k', 'LineWidth', 2)
+    colorbar
+    colormap('jet')
+    set(gca, 'clim', [-0.5, 0.5], 'YScale', 'lin', 'YTick', [4, 8, 12, 20])
+    title('Interaction switch-current x switch-prev')
+
+    % 3-fold Interaction
+    data1 = (ersp_std_rr - ersp_bon_rr) - (ersp_std_sr - ersp_bon_sr);
+    data2 = (ersp_std_rs - ersp_bon_rs) - (ersp_std_ss - ersp_bon_ss);
+    interaction_effect = struct();
+    [interaction_effect.sig_flag,...
+        interaction_effect.ave1,...
+        interaction_effect.ave2,...
+        interaction_effect.outline,...
+        interaction_effect.apes,...
+        interaction_effect.clust_sumt,...
+        interaction_effect.clust_pvals,...
+        interaction_effect.clust_apes,...
+        interaction_effect.time_limits,...
+        interaction_effect.freq_limits,...
+        interaction_effect.cluster_idx] = cluststats_2d_data(data1, data2, tf_result.tf_time, tf_result.tf_freqs);
+
+    figure()
+    contourf(tf_result.tf_time, tf_result.tf_freqs, interaction_effect.apes, 50, 'linecolor','none')
+    hold on
+    contour(tf_result.tf_time, tf_result.tf_freqs, interaction_effect.outline, 1, 'linecolor', 'k', 'LineWidth', 2)
+    colorbar
+    colormap('jet')
+    set(gca, 'clim', [-0.5, 0.5], 'YScale', 'lin', 'YTick', [4, 8, 12, 20])
+    title('3-fold Interaction')
+
+
+
+
+
+    aa = bb
 
     % Save for plots
     dlmwrite([PATH_VEUSZ, 'ersp_std_rep.csv'], squeeze(mean(ersp_std_rep, 1)));
