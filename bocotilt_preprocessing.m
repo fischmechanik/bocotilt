@@ -10,11 +10,11 @@ PATH_AUTOCLEANED   = '/mnt/data_dump/bocotilt/2_autocleaned/';
 % Subjects
 subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18',...
                 'VP19', 'VP20', 'VP21', 'VP22', 'VP23', 'VP08', 'VP24', 'VP26', 'VP27', 'VP28',...
-                'VP29', 'VP30', 'VP31'};
+                'VP29', 'VP30', 'VP31', 'VP32'};
 
 % Test switch                  
-if false
-    subject_list = {'VP30'};
+if true
+    subject_list = {'VP32'};
 end
 
 % Init eeglab
@@ -321,7 +321,6 @@ for s = 1 : length(subject_list)
     % Save channel label in order for creating 10-20 montage in mne
     channel_labels = '';
     for ch = 1 : EEG.nbchan
-        EEG.chanlocs(ch).labels
         channel_labels = [channel_labels, ' ', EEG.chanlocs(ch).labels];
     end
     save([PATH_AUTOCLEANED, 'channel_labels.mat'], 'channel_labels');

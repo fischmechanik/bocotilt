@@ -116,23 +116,23 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
     #  3: bonustrial  x
     #  4: tilt_task  x
     #  5: cue_ax  x
-    #  6: target_red_left  x
-    #  7: distractor_red_left  x
-    #  8: response_interference  x
-    #  9: task_switch  x
-    # 10: correct_response x
-    # 11: response_side
-    # 12: rt
-    # 13: accuracy
-    # 14: log_response_side
-    # 15: log_rt
-    # 16: log_accuracy
-    # 17: position_color  x
-    # 18: position_tilt  x
-    # 19: position_target   x
-    # 20: position_distractor   x
-    # 21: sequence_position
-    # 22: sequence_length
+    #  6: target_red_left
+    #  7: distractor_red_left
+    #  8: response_interference
+    #  9: task_switch x
+    # 10: prev_switch x
+    # 11: prev_accuracy
+    # 12: correct_response
+    # 13: response_side x
+    # 14: rt
+    # 15: rt_thresh_color
+    # 16: rt_thresh_tilt
+    # 17: accuracy
+    # 18: position_color
+    # 19: position_tilt
+    # 20: position_target   x
+    # 21: position_distractor   x
+    # 22: sequence_position
 
     # Define classifications to perform
     clfs = []
@@ -177,50 +177,50 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
 
     # Response decoding
     clfs.append(
-        {"label": "response in std-rep", "trial_idx": idx_std_rep, "y_col": 14,}
+        {"label": "response in std-rep", "trial_idx": idx_std_rep, "y_col": 13,}
     )
 
     clfs.append(
-        {"label": "response in std-swi", "trial_idx": idx_std_swi, "y_col": 14,}
+        {"label": "response in std-swi", "trial_idx": idx_std_swi, "y_col": 13,}
     )
     clfs.append(
-        {"label": "response in bon-rep", "trial_idx": idx_bon_rep, "y_col": 14,}
+        {"label": "response in bon-rep", "trial_idx": idx_bon_rep, "y_col": 13,}
     )
 
     clfs.append(
-        {"label": "response in bon-swi", "trial_idx": idx_bon_swi, "y_col": 14,}
+        {"label": "response in bon-swi", "trial_idx": idx_bon_swi, "y_col": 13,}
     )
 
     # Target decoding
     clfs.append(
-        {"label": "target in std-rep", "trial_idx": idx_std_rep, "y_col": 19,}
+        {"label": "target in std-rep", "trial_idx": idx_std_rep, "y_col": 20,}
     )
 
     clfs.append(
-        {"label": "target in std-swi", "trial_idx": idx_std_swi, "y_col": 19,}
+        {"label": "target in std-swi", "trial_idx": idx_std_swi, "y_col": 20,}
     )
     clfs.append(
-        {"label": "target in bon-rep", "trial_idx": idx_bon_rep, "y_col": 19,}
+        {"label": "target in bon-rep", "trial_idx": idx_bon_rep, "y_col": 20,}
     )
 
     clfs.append(
-        {"label": "target in bon-swi", "trial_idx": idx_bon_swi, "y_col": 19,}
+        {"label": "target in bon-swi", "trial_idx": idx_bon_swi, "y_col": 20,}
     )
 
     # Distractor decoding
     clfs.append(
-        {"label": "distractor in std-rep", "trial_idx": idx_std_rep, "y_col": 20,}
+        {"label": "distractor in std-rep", "trial_idx": idx_std_rep, "y_col": 21,}
     )
 
     clfs.append(
-        {"label": "distractor in std-swi", "trial_idx": idx_std_swi, "y_col": 20,}
+        {"label": "distractor in std-swi", "trial_idx": idx_std_swi, "y_col": 21,}
     )
     clfs.append(
-        {"label": "distractor in bon-rep", "trial_idx": idx_bon_rep, "y_col": 20,}
+        {"label": "distractor in bon-rep", "trial_idx": idx_bon_rep, "y_col": 21,}
     )
 
     clfs.append(
-        {"label": "distractor in bon-swi", "trial_idx": idx_bon_swi, "y_col": 20,}
+        {"label": "distractor in bon-swi", "trial_idx": idx_bon_swi, "y_col": 21,}
     )
 
     # Compress features
@@ -297,13 +297,13 @@ for dataset_idx, dataset in enumerate(datasets):
     )
 
     # Apply baseline procedure
-    tf_epochs.apply_baseline(mode="logratio", baseline=(-0.100, 0))
+    tf_epochs.apply_baseline(mode="logratio", baseline=(-0.200, 0))
 
     # Clean up
     del eeg_epochs
 
     # Prune in time
-    pruneframes = 40
+    pruneframes = 80
     tf_times = tf_epochs.times[pruneframes:-pruneframes]
     tf_data = tf_epochs.data[:, :, :, pruneframes:-pruneframes]
 
@@ -322,12 +322,12 @@ for dataset_idx, dataset in enumerate(datasets):
     # trialinfo[:, 20] = np.floor((trialinfo[:, 20] - 1) / 2)
 
     # Recode distractor and target positions in 2 bins 0-1 (roughly left vs right...)
-    trialinfo[:, 19] = np.floor((trialinfo[:, 19] - 1) / 4)
     trialinfo[:, 20] = np.floor((trialinfo[:, 20] - 1) / 4)
+    trialinfo[:, 21] = np.floor((trialinfo[:, 21] - 1) / 4)
 
     # Exclude trials: Practice-block trials & first-of-sequence trials & non-correct trials
     idx_to_keep = (
-        (trialinfo[:, 1] >= 5) & (trialinfo[:, 21] >= 2) & (trialinfo[:, 16] == 1)
+        (trialinfo[:, 1] >= 5) & (trialinfo[:, 22] >= 3) & (trialinfo[:, 17] == 1)
     )
     trialinfo = trialinfo[idx_to_keep, :]
     tf_data = tf_data[idx_to_keep, :, :, :]
@@ -345,20 +345,20 @@ for dataset_idx, dataset in enumerate(datasets):
     #  6: target_red_left
     #  7: distractor_red_left
     #  8: response_interference
-    #  9: task_switch
-    # 10: correct_response
-    # 11: response_side
-    # 12: rt
-    # 13: accuracy
-    # 14: log_response_side x
-    # 15: log_rt
-    # 16: log_accuracy
-    # 17: position_color
-    # 18: position_tilt
-    # 19: position_target   x
-    # 20: position_distractor   x
-    # 21: sequence_position
-    # 22: sequence_length
+    #  9: task_switch x
+    # 10: prev_switch x
+    # 11: prev_accuracy
+    # 12: correct_response
+    # 13: response_side x
+    # 14: rt
+    # 15: rt_thresh_color
+    # 16: rt_thresh_tilt
+    # 17: accuracy
+    # 18: position_color
+    # 19: position_tilt
+    # 20: position_target   x
+    # 21: position_distractor   x
+    # 22: sequence_position
 
     # Get combined coding
     combined_codes = np.array(
@@ -367,9 +367,10 @@ for dataset_idx, dataset in enumerate(datasets):
                 str(int(trialinfo[x, 3]))
                 + str(int(trialinfo[x, 4]))
                 + str(int(trialinfo[x, 5]))
-                + str(int(trialinfo[x, 14]))
-                + str(int(trialinfo[x, 19]))
+                + str(int(trialinfo[x, 9]))
+                + str(int(trialinfo[x, 10]))
                 + str(int(trialinfo[x, 20]))
+                + str(int(trialinfo[x, 21]))
             )
             for x in range(trialinfo.shape[0])
         ]
@@ -391,7 +392,7 @@ for dataset_idx, dataset in enumerate(datasets):
     # Clean up
     del tf_data
 
-    # Fit random forest
+    # Decode
     out = joblib.Parallel(n_jobs=-2)(
         joblib.delayed(decode_timeslice)(X, trialinfo, combined_codes) for X in X_list
     )

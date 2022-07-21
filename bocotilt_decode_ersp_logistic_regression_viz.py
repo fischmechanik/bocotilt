@@ -57,6 +57,10 @@ def plot_decoding_result(
     data_bon_rep = np.stack(data_bon_rep)
     data_bon_swi = np.stack(data_bon_swi)
 
+    # Interaction data
+    data_int_std = data_std_swi - data_std_rep
+    data_int_bon = data_bon_swi - data_bon_rep
+
     # Test bonus
     (
         T_obs_bon,
@@ -87,6 +91,21 @@ def plot_decoding_result(
         out_type="mask",
     )
 
+    # Test interaction
+    (
+        T_obs_int,
+        clusters_int,
+        cluster_p_values_int,
+        H0_int,
+    ) = mne.stats.permutation_cluster_test(
+        [data_int_std, data_int_bon],
+        n_permutations=1000,
+        threshold=f_thresh,
+        tail=1,
+        n_jobs=1,
+        out_type="mask",
+    )
+    print(cluster_p_values_int)
     # Create 2-axis figure
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 4))
 
@@ -106,17 +125,18 @@ def plot_decoding_result(
     ax1.plot(
         times, data_bon_swi.mean(axis=0), label="bon-swi",
     )
+
     ax1.set_ylabel("accuracy")
     ax1.set_xlabel("time (s)")
     ax1.legend()
 
     # Plot statistics
-    for i_c, c in enumerate(clusters_bon):
+    for i_c, c in enumerate(clusters_int):
         c = c[0]
-        if cluster_p_values[i_c] <= 0.05:
-            h = ax2.axvspan(times[c.start], times[c.stop - 1], color="g", alpha=0.3)
+        if cluster_p_values_int[i_c] <= 0.05:
+            ax1.axvspan(times[c.start], times[c.stop - 1], color="g", alpha=0.3)
         else:
-            ax2.axvspan(
+            ax1.axvspan(
                 times[c.start], times[c.stop - 1], color=(0.3, 0.3, 0.3), alpha=0.3
             )
 
@@ -190,10 +210,10 @@ times = data["tf_times"][smowin - 1 :]
 
 # Plot
 plot_decoding_result(
-    cue_bon_swi,
-    cue_std_rep,
-    cue_std_swi,
-    cue_bon_rep,
+    task_std_rep,
+    task_std_swi,
+    task_bon_rep,
+    task_bon_swi,
     decode_label="stuff",
     f_thresh=2.0,
 )
