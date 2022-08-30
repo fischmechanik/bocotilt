@@ -17,7 +17,7 @@ subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 
 %subject_list = {'VP09', 'VP17', 'VP25', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18', 'VP19', 'VP20', 'VP21', 'VP22', 'VP23', 'VP08', 'VP24', 'VP26', 'VP27'};
 
 % SWITCH: Switch parts of script on/off
-to_execute = {'part1', 'part2'};
+to_execute = {'part2'};
 
 % Part 1: Calculate ersp
 if ismember('part1', to_execute)
@@ -30,9 +30,9 @@ if ismember('part1', to_execute)
     EEG = pop_loadset('filename', [subject_list{1} '_cleaned.set'], 'filepath', PATH_AUTOCLEANED, 'loadmode', 'info');
 
     % Set complex Morlet wavelet parameters
-    n_frq = 50;
+    n_frq = 20;
     frqrange = [2, 20];
-    tfres_range = [600, 300];
+    tfres_range = [400, 100];
 
     % Set wavelet time
     wtime = -2 : 1 / EEG.srate : 2;
@@ -100,36 +100,8 @@ if ismember('part1', to_execute)
         % To double precision
         eeg_data = double(EEG.data);
 
-        %  1: id
-        %  2: block_nr
-        %  3: trial_nr
-        %  4: bonustrial
-        %  5: tilt_task
-        %  6: cue_ax
-        %  7: target_red_left
-        %  8: distractor_red_left
-        %  9: response_interference
-        % 10: task_switch
-        % 11: prev_switch
-        % 12: prev_accuracy
-        % 13: correct_response
-        % 14: response_side
-        % 15: rt
-        % 16: rt_thresh_color
-        % 17: rt_thresh_tilt
-        % 18: accuracy
-        % 19: position_color
-        % 20: position_tilt
-        % 21: position_target
-        % 22: position_distractor    
-        % 23: sequence_position    
-
         % Exclude trials
-        to_keep = EEG.trialinfo(:, 2) > 4 &...
-                  EEG.trialinfo(:, 23) < 8 &...
-                  EEG.trialinfo(:, 23) > 1 &...
-                  EEG.trialinfo(:, 18) == 1;
-
+        to_keep = EEG.trialinfo(:, 2) > 4 & EEG.trialinfo(:, 23) < 8 & EEG.trialinfo(:, 23) > 1;
         eeg_data = eeg_data(:, :, to_keep);
         EEG.trialinfo = EEG.trialinfo(to_keep, :);
         EEG.trials = sum(to_keep);

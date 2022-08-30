@@ -10,7 +10,7 @@ PATH_VEUSZ       = '/mnt/data_dump/bocotilt/veusz/';
 % Subject list
 subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18',...
                 'VP19', 'VP20', 'VP21', 'VP22', 'VP23', 'VP08', 'VP24', 'VP26', 'VP27', 'VP28',...
-                'VP29', 'VP30', 'VP31'};
+                'VP29', 'VP30', 'VP31', 'VP32', 'VP33', 'VP34'};
 
 
 %subject_list = {'VP09', 'VP17', 'VP25', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18', 'VP19', 'VP20', 'VP21', 'VP22', 'VP23', 'VP08', 'VP24', 'VP26', 'VP27'};
@@ -464,7 +464,6 @@ if ismember('part2', to_execute)
         % 23: sequence_position
 
         % Calculate averages for conditions
-        ersp_2fac_ = zeros(2, 2, 2, size(powcube, 1), size(powcube, 2));
         ersp_3fac = zeros(2, 2, 2, size(powcube, 1), size(powcube, 2));
         condcount = 0;
         for bon = 1 : 2
@@ -489,7 +488,7 @@ if ismember('part2', to_execute)
         end
 
         % Copy to results
-        tf_result.ersp_3fac{end + 1} = ersp_3fac;
+        tf_result.ersp{end + 1} = ersp_3fac;
 
     end % End subject loop
 
@@ -586,8 +585,6 @@ if ismember('part3', to_execute)
                    mean(squeeze(theta_traces_anova(:, 1, 1, 2, idx1 : idx2)), 2),...
                    mean(squeeze(theta_traces_anova(:, 1, 2, 1, idx1 : idx2)), 2),...
                    mean(squeeze(theta_traces_anova(:, 1, 2, 2, idx1 : idx2)), 2)];
-
-aa=bb
 
     % Perform rmANOVA for rt
     varnames = {'id', 'std_rr', 'std_sr', 'std_rs', 'std_ss', 'bon_rr', 'bon_sr', 'bon_rs', 'bon_ss'};
@@ -828,11 +825,6 @@ aa=bb
     dlmwrite([PATH_VEUSZ, 'bonus_contour.csv'], main_effect_bonus.outline);
     dlmwrite([PATH_VEUSZ, 'switch_contour.csv'], main_effect_switch.outline);
     dlmwrite([PATH_VEUSZ, 'interaction_contour.csv'], interaction_effect.outline);
-
-
-
-    aa=bb 
-
 
     % Save theta ersp traces
     dlmwrite([PATH_GED, 'theta_ersp_traces.csv'], theta_ersp_traces);
