@@ -13,11 +13,8 @@ subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 
                 'VP19', 'VP20', 'VP21', 'VP22', 'VP23', 'VP08', 'VP24', 'VP26', 'VP27', 'VP28',...
                 'VP29', 'VP30', 'VP31', 'VP32', 'VP33', 'VP34'};
 
-
-%subject_list = {'VP09', 'VP17', 'VP25', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18', 'VP19', 'VP20', 'VP21', 'VP22', 'VP23', 'VP08', 'VP24', 'VP26', 'VP27'};
-
 % SWITCH: Switch parts of script on/off
-to_execute = {'part1', 'part2'};
+to_execute = {'part3'};
 
 % Part 1: Calculate ersp
 if ismember('part1', to_execute)
@@ -30,7 +27,7 @@ if ismember('part1', to_execute)
     EEG = pop_loadset('filename', [subject_list{1} '_cleaned.set'], 'filepath', PATH_AUTOCLEANED, 'loadmode', 'info');
 
     % Set complex Morlet wavelet parameters
-    n_frq = 50;
+    n_frq = 20;
     frqrange = [2, 20];
     tfres_range = [600, 300];
 
@@ -41,7 +38,7 @@ if ismember('part1', to_execute)
     hz = linspace(0, EEG.srate, length(wtime));
 
     % Create wavelet frequencies and tapering Gaussian widths in temporal domain
-    tf_freqs = linspace(frqrange(1), frqrange(2), n_frq);
+    tf_freqs = logspace(log10(frqrange(1)), log10(frqrange(2)), n_frq);
     fwhmTs = logspace(log10(tfres_range(1)), log10(tfres_range(2)), n_frq);
 
     % Init matrices for wavelets
@@ -84,8 +81,10 @@ if ismember('part1', to_execute)
 
     % Result struct
     chanlocs = EEG.chanlocs;
-    ersp = zeros(length(subject_list), 2, 2, EEG.nbchan, length(tf_freqs), length(tf_times));
-    itpc = zeros(length(subject_list), 2, 2, EEG.nbchan, length(tf_freqs), length(tf_times));
+    ersp_std_rep = single(zeros(length(subject_list), EEG.nbchan, length(tf_freqs), length(tf_times)));
+    ersp_std_swi = single(zeros(length(subject_list), EEG.nbchan, length(tf_freqs), length(tf_times)));
+    ersp_bon_rep = single(zeros(length(subject_list), EEG.nbchan, length(tf_freqs), length(tf_times)));
+    ersp_bon_swi = single(zeros(length(subject_list), EEG.nbchan, length(tf_freqs), length(tf_times)));
 
     % Loop subjects
     for s = 1 : length(subject_list)
@@ -126,9 +125,7 @@ if ismember('part1', to_execute)
 
         % Exclude trials
         to_keep = EEG.trialinfo(:, 2) > 4 &...
-                  EEG.trialinfo(:, 23) < 8 &...
-                  EEG.trialinfo(:, 23) > 1 &...
-                  EEG.trialinfo(:, 18) == 1;
+                  EEG.trialinfo(:, 23) > 1;
 
         eeg_data = eeg_data(:, :, to_keep);
         EEG.trialinfo = EEG.trialinfo(to_keep, :);
@@ -150,14 +147,13 @@ if ismember('part1', to_execute)
         idx_bon_swi_balanced = randsample(idx_bon_swi, min_n);
 
         % Loop channels
-        for ch = 1 : EEG.nbchan
-
-            % Talk
-            fprintf('\ntf-decomposition | subject %i/%i | channel %i/%i\n', s, length(subject_list), ch, EEG.nbchan);
+        parfor ch = 1 : EEG.nbchan
 
             % Init tf matrices
             powcube = NaN(length(tf_freqs), EEG.pnts, EEG.trials);
-            phacube = NaN(length(tf_freqs), EEG.pnts, EEG.trials);
+
+            % Talk
+            fprintf('\ntf-decomposition | subject %i/%i | channel %i/%i\n', s, length(subject_list), ch, EEG.nbchan);
 
             % Get component signal
             channel_data = squeeze(eeg_data(ch, :, :));
@@ -178,13 +174,11 @@ if ismember('part1', to_execute)
                 as = ifft(cmwX(f, :) .* tmp); 
                 as = as(((size(cmw, 2) - 1) / 2) + 1 : end - ((size(cmw, 2) - 1) / 2));
                 as = reshape(as, EEG.pnts, EEG.trials);
-                powcube(f, :, :) = abs(as) .^ 2;
-                phacube(f, :, :) = exp(1i * angle(as));     
+                powcube(f, :, :) = abs(as) .^ 2;   
             end
            
             % Cut edges
             powcube = powcube(:, dsearchn(EEG.times', -500) : dsearchn(EEG.times', 2000), :);
-            phacube = phacube(:, dsearchn(EEG.times', -500) : dsearchn(EEG.times', 2000), :);
 
             % Get condition general baseline values
             ersp_bl = [-500, -200];
@@ -194,30 +188,23 @@ if ismember('part1', to_execute)
             blvals = squeeze(mean(tmp(:, blidx1 : blidx2), 2));
 
             % Calculate ersp
-            ersp(s, 1, 1, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_std_rep), 3)), blvals));
-            ersp(s, 1, 2, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_std_swi), 3)), blvals));
-            ersp(s, 2, 1, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_bon_rep), 3)), blvals));
-            ersp(s, 2, 2, ch, :, :) = 10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_bon_swi), 3)), blvals));
-
-            % Calculate itpc
-            itpc(s, 1, 1, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_std_rep_balanced), 3)));
-            itpc(s, 1, 2, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_std_swi_balanced), 3)));
-            itpc(s, 2, 1, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_bon_rep_balanced), 3)));
-            itpc(s, 2, 2, ch, :, :)  = abs(squeeze(mean(phacube(:, :, idx_bon_swi_balanced), 3)));
+            ersp_std_rep(s, ch, :, :) = single(10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_std_rep), 3)), blvals)));
+            ersp_std_swi(s, ch, :, :) = single(10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_std_swi), 3)), blvals)));
+            ersp_bon_rep(s, ch, :, :) = single(10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_bon_rep), 3)), blvals)));
+            ersp_bon_swi(s, ch, :, :) = single(10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_bon_swi), 3)), blvals)));
 
         end % end channel loop
-    end % end subject loop
 
-    % Convert to single
-    ersp = single(ersp);
-    itpc = single(itpc);
+    end % end subject loop
 
     % Save shit
     save([PATH_TF_DATA, 'chanlocs.mat'], 'chanlocs');
     save([PATH_TF_DATA, 'tf_freqs.mat'], 'tf_freqs');
     save([PATH_TF_DATA, 'tf_times.mat'], 'tf_times');
-    save([PATH_TF_DATA, 'ersp.mat'], 'ersp');
-    save([PATH_TF_DATA, 'itpc.mat'], 'itpc');
+    save([PATH_TF_DATA, 'ersp_std_rep.mat'], 'ersp_std_rep');
+    save([PATH_TF_DATA, 'ersp_std_swi.mat'], 'ersp_std_swi');
+    save([PATH_TF_DATA, 'ersp_bon_rep.mat'], 'ersp_bon_rep');
+    save([PATH_TF_DATA, 'ersp_bon_swi.mat'], 'ersp_bon_swi');
 
 end % End part1
 
@@ -232,22 +219,24 @@ if ismember('part2', to_execute)
     load([PATH_TF_DATA, 'chanlocs.mat']);
     load([PATH_TF_DATA, 'tf_freqs.mat']);
     load([PATH_TF_DATA, 'tf_times.mat']);
-    load([PATH_TF_DATA, 'ersp.mat']);
-    load([PATH_TF_DATA, 'itpc.mat']);
-
-    % To double
-    ersp = double(ersp);
+    load([PATH_TF_DATA, 'ersp_std_rep.mat']);
+    load([PATH_TF_DATA, 'ersp_std_swi.mat']);
+    load([PATH_TF_DATA, 'ersp_bon_rep.mat']);
+    load([PATH_TF_DATA, 'ersp_bon_swi.mat']);
 
     % Exclude
-    to_exclude = {};
+    to_exclude = {'VP09'};
     idx_exclude = []
     for ex = 1 : numel(to_exclude)
         idx_exclude(ex) = find(strcmpi(subject_list, to_exclude{ex}));
     end
-    ersp(idx_exclude, :, :, :, :, :) = [];
+    ersp_std_rep(idx_exclude, :, :, :) = [];
+    ersp_std_swi(idx_exclude, :, :, :) = [];
+    ersp_bon_rep(idx_exclude, :, :, :) = [];
+    ersp_bon_swi(idx_exclude, :, :, :) = [];
 
     % Get dims
-    [n_subjects, n_bonus, n_switch, n_channels, n_freqs, n_times] = size(ersp);
+    [n_subjects, n_channels, n_freqs, n_times] = size(ersp_std_rep);
 
     % Build elec struct
     for ch = 1 : n_channels
@@ -264,39 +253,39 @@ if ismember('part2', to_execute)
 
 
     % Re-organize data
-    for s = 1: n_subjects
+    for s = 1 : n_subjects
 
-        ersp_std.powspctrm = (squeeze(ersp(s, 1, 1, :, :, :)) + squeeze(ersp(s, 1, 2, :, :, :))) / 2;
+        ersp_std.powspctrm = double((squeeze(ersp_std_rep(s, :, :, :)) + squeeze(ersp_std_swi(s, :, :, :))) / 2);
         ersp_std.dimord    = 'chan_freq_time';
         ersp_std.label     = elec.label;
         ersp_std.freq      = tf_freqs;
         ersp_std.time      = tf_times;
 
-        ersp_bon.powspctrm = (squeeze(ersp(s, 2, 1, :, :, :)) + squeeze(ersp(s, 2, 2, :, :, :))) / 2;
+        ersp_bon.powspctrm = double((squeeze(ersp_bon_rep(s, :, :, :)) + squeeze(ersp_bon_swi(s, :, :, :))) / 2);
         ersp_bon.dimord    = 'chan_freq_time';
         ersp_bon.label     = elec.label;
         ersp_bon.freq      = tf_freqs;
         ersp_bon.time      = tf_times;
 
-        ersp_rep.powspctrm = (squeeze(ersp(s, 1, 1, :, :, :)) + squeeze(ersp(s, 2, 1, :, :, :))) / 2;
+        ersp_rep.powspctrm = double((squeeze(ersp_std_rep(s, :, :, :)) + squeeze(ersp_bon_rep(s, :, :, :))) / 2);
         ersp_rep.dimord    = 'chan_freq_time';
         ersp_rep.label     = elec.label;
         ersp_rep.freq      = tf_freqs;
         ersp_rep.time      = tf_times;
 
-        ersp_swi.powspctrm = (squeeze(ersp(s, 1, 2, :, :, :)) + squeeze(ersp(s, 2, 2, :, :, :))) / 2;
+        ersp_swi.powspctrm = double((squeeze(ersp_std_swi(s, :, :, :)) + squeeze(ersp_bon_swi(s, :, :, :))) / 2);
         ersp_swi.dimord    = 'chan_freq_time';
         ersp_swi.label     = elec.label;
         ersp_swi.freq      = tf_freqs;
         ersp_swi.time      = tf_times;
 
-        ersp_diff_std.powspctrm = squeeze(ersp(s, 1, 1, :, :, :)) - squeeze(ersp(s, 1, 2, :, :, :));
+        ersp_diff_std.powspctrm = double(squeeze(ersp_std_rep(s, :, :, :)) - squeeze(ersp_std_swi(s, :, :, :)));
         ersp_diff_std.dimord    = 'chan_freq_time';
         ersp_diff_std.label     = elec.label;
         ersp_diff_std.freq      = tf_freqs;
         ersp_diff_std.time      = tf_times;
 
-        ersp_diff_bon.powspctrm = squeeze(ersp(s, 2, 1, :, :, :)) - squeeze(ersp(s, 2, 2, :, :, :));
+        ersp_diff_bon.powspctrm = double(squeeze(ersp_bon_rep(s, :, :, :)) - squeeze(ersp_bon_swi(s, :, :, :)));
         ersp_diff_bon.dimord    = 'chan_freq_time';
         ersp_diff_bon.label     = elec.label;
         ersp_diff_bon.freq      = tf_freqs;
@@ -376,8 +365,13 @@ if ismember('part2', to_execute)
         adjpetasq_interaction(ch, :, :) = adj_petasq;
     end
 
+    % Save cluster struct
+    save([PATH_OUT 'adjpetasq_bonus.mat'], 'adjpetasq_bonus');
+    save([PATH_OUT 'adjpetasq_switch.mat'], 'adjpetasq_switch');
+    save([PATH_OUT 'adjpetasq_interaction.mat'], 'adjpetasq_interaction');
+
     % Identify significant clusters
-    clust_thresh = 0.1;
+    clust_thresh = 0.025;
     clusts = struct();
     cnt = 0;
     stat_names = {'stat_bonus', 'stat_switch', 'stat_interaction'};
@@ -416,7 +410,7 @@ if ismember('part2', to_execute)
     end
 
     % Save cluster struct
-    % save([PATH_CLUSTSTATS 'significant_clusters.mat'], 'clusts');
+    save([PATH_OUT 'significant_clusters.mat'], 'clusts');
 
     % Plot identified cluster
     clinecol = 'k';
@@ -464,6 +458,61 @@ if ismember('part2', to_execute)
         saveas(gcf, [PATH_OUT 'clustnum_' num2str(clusts(cnt).clustnum) '_' clusts(cnt).testlabel '.png']); 
     end
 
+end % End part 2
 
 
-end
+% Part 3: Some plotting
+if ismember('part3', to_execute)
+
+    % Load all the things
+    load([PATH_TF_DATA, 'chanlocs.mat']);
+    load([PATH_TF_DATA, 'tf_freqs.mat']);
+    load([PATH_TF_DATA, 'tf_times.mat']);
+    load([PATH_TF_DATA, 'ersp_std_rep.mat']);
+    load([PATH_TF_DATA, 'ersp_std_swi.mat']);
+    load([PATH_TF_DATA, 'ersp_bon_rep.mat']);
+    load([PATH_TF_DATA, 'ersp_bon_swi.mat']);
+    load([PATH_OUT, 'significant_clusters.mat']);
+    load([PATH_OUT 'adjpetasq_bonus.mat']);
+    load([PATH_OUT 'adjpetasq_switch.mat']);
+    load([PATH_OUT 'adjpetasq_interaction.mat']);
+
+    % Main effect bonus
+    ersp_std = squeeze(mean(double((ersp_std_rep + ersp_std_swi) / 2), [1, 2]));
+    ersp_bon = squeeze(mean(double((ersp_bon_rep + ersp_bon_swi) / 2), [1, 2]));
+    apes_bon = squeeze(mean(adjpetasq_bonus, 1));
+    outline_bon = logical(squeeze(mean(clusts(1).idx, 1)) + squeeze(mean(clusts(2).idx, 1)));
+
+    writematrix(ersp_std, [PATH_OUT, 'ersp_std.csv']);
+    writematrix(ersp_bon, [PATH_OUT, 'ersp_bon.csv']);
+    writematrix(apes_bon, [PATH_OUT, 'apes_bon.csv']);
+    writematrix(outline_bon, [PATH_OUT, 'outline_bon.csv']);
+
+    % Plot cluster 1 topo
+    idx_time = logical(squeeze(mean(clusts(1).idx, [1, 2])));
+    idx_freq = logical(squeeze(mean(clusts(1).idx, [1, 3])));
+    idx_chan = logical(squeeze(mean(clusts(1).idx, [2, 3])));
+    pd = squeeze(mean(adjpetasq_bonus(:, idx_freq, idx_time), [2, 3]));
+    figure('Visible', 'off'); clf;
+    topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {find(idx_chan), '.', 'k'} );
+    colormap('jet')
+    set(gca, 'clim', [-0.3, 0.3])
+    saveas(gcf, [PATH_OUT, 'topo_cluster_1.png']);
+
+    % Plot cluster 2 topo
+    idx_time = logical(squeeze(mean(clusts(2).idx, [1, 2])));
+    idx_freq = logical(squeeze(mean(clusts(2).idx, [1, 3])));
+    idx_chan = logical(squeeze(mean(clusts(2).idx, [2, 3])));
+    pd = squeeze(mean(adjpetasq_bonus(:, idx_freq, idx_time), [2, 3]));
+    figure('Visible', 'off'); clf;
+    topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {find(idx_chan), '.', 'k'} );
+    colormap('jet')
+    set(gca, 'clim', [-0.3, 0.3])
+    saveas(gcf, [PATH_OUT, 'topo_cluster_2.png']); 
+
+
+
+
+
+
+end % End part 3
