@@ -1,3 +1,4 @@
+
 % Clear residuals
 clear all;
 
@@ -7,6 +8,7 @@ PATH_AUTOCLEANED = '/mnt/data_dump/bocotilt/2_autocleaned/';
 PATH_TF_DATA     = '/mnt/data_dump/bocotilt/4_ersp/';
 PATH_FIELDTRIP   = '/home/plkn/fieldtrip-master/';
 PATH_OUT         = '/mnt/data_dump/bocotilt/4_ersp/out/';
+PATH_SELF_REPORT = '/mnt/data_dump/bocotilt/0_logfiles/';
 
 % Subject list
 subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18',...
@@ -14,7 +16,7 @@ subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 
                 'VP29', 'VP30', 'VP31', 'VP32', 'VP33', 'VP34'};
 
 % SWITCH: Switch parts of script on/off
-to_execute = {'part3'};
+to_execute = {'part4'};
 
 % Part 1: Calculate ersp
 if ismember('part1', to_execute)
@@ -225,8 +227,8 @@ if ismember('part2', to_execute)
     load([PATH_TF_DATA, 'ersp_bon_swi.mat']);
 
     % Exclude
-    to_exclude = {'VP09'};
-    idx_exclude = []
+    to_exclude = {};
+    idx_exclude = [];
     for ex = 1 : numel(to_exclude)
         idx_exclude(ex) = find(strcmpi(subject_list, to_exclude{ex}));
     end
@@ -245,12 +247,14 @@ if ismember('part2', to_execute)
         elec.chanpos(ch, :) = [chanlocs(ch).X, chanlocs(ch).Y, chanlocs(ch).Z];
     end
 
+    % Save elec for later analyses
+    save([PATH_OUT 'elec.mat'], 'elec');
+
     % Prepare layout
     cfg      = [];
     cfg.elec = elec;
     cfg.rotate = 90;
     layout = ft_prepare_layout(cfg);
-
 
     % Re-organize data
     for s = 1 : n_subjects
@@ -318,6 +322,9 @@ if ismember('part2', to_execute)
     cfg.method          = 'triangulation'; 
     cfg.neighbours      = ft_prepare_neighbours(cfg, GA_std);
     neighbours          = cfg.neighbours;
+
+    % Save neighbors for later analyses
+    save([PATH_OUT 'neighbours.mat'], 'neighbours');
 
     % Testparams
     testalpha   = 0.025;
@@ -559,8 +566,8 @@ if ismember('part3', to_execute)
     % =============== Line plots at FCz and POz ========================================================
 
     % Some indices...
-    idx_fcz = 127;
-    idx_poz = 63;
+    idx_frontal = [17, 33, 34, 65, 66, 69, 70, 127];
+    idx_posterior = [19, 37, 38, 63, 71, 72, 99, 100];
     idx_delta = tf_freqs < 4;
     idx_theta = tf_freqs >= 4 & tf_freqs <= 8;
     idx_alpha = tf_freqs >= 8 & tf_freqs <= 12;
@@ -571,65 +578,216 @@ if ismember('part3', to_execute)
 
     % Get lineplots
     fcz_delta = zeros(length(tf_times), 4);
-    fcz_delta(:, 1) = squeeze(mean(squeeze(ersp_std_rep(:, idx_fcz, idx_delta, :)), [1, 2]));
-    fcz_delta(:, 2) = squeeze(mean(squeeze(ersp_std_swi(:, idx_fcz, idx_delta, :)), [1, 2]));
-    fcz_delta(:, 3) = squeeze(mean(squeeze(ersp_bon_rep(:, idx_fcz, idx_delta, :)), [1, 2]));
-    fcz_delta(:, 4) = squeeze(mean(squeeze(ersp_bon_swi(:, idx_fcz, idx_delta, :)), [1, 2]));
+    fcz_delta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_frontal, idx_delta, :), [1, 2, 3]));
+    fcz_delta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_frontal, idx_delta, :), [1, 2, 3]));
+    fcz_delta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_frontal, idx_delta, :), [1, 2, 3]));
+    fcz_delta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_frontal, idx_delta, :), [1, 2, 3]));
     writematrix(fcz_delta, [PATH_OUT, 'lineplots_fcz_delta.csv']);
 
     fcz_theta = zeros(length(tf_times), 4);
-    fcz_theta(:, 1) = squeeze(mean(squeeze(ersp_std_rep(:, idx_fcz, idx_theta, :)), [1, 2]));
-    fcz_theta(:, 2) = squeeze(mean(squeeze(ersp_std_swi(:, idx_fcz, idx_theta, :)), [1, 2]));
-    fcz_theta(:, 3) = squeeze(mean(squeeze(ersp_bon_rep(:, idx_fcz, idx_theta, :)), [1, 2]));
-    fcz_theta(:, 4) = squeeze(mean(squeeze(ersp_bon_swi(:, idx_fcz, idx_theta, :)), [1, 2]));
+    fcz_theta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_frontal, idx_theta, :), [1, 2, 3]));
+    fcz_theta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_frontal, idx_theta, :), [1, 2, 3]));
+    fcz_theta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_frontal, idx_theta, :), [1, 2, 3]));
+    fcz_theta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_frontal, idx_theta, :), [1, 2, 3]));
     writematrix(fcz_theta, [PATH_OUT, 'lineplots_fcz_theta.csv']);
 
     fcz_alpha = zeros(length(tf_times), 4);
-    fcz_alpha(:, 1) = squeeze(mean(squeeze(ersp_std_rep(:, idx_fcz, idx_alpha, :)), [1, 2]));
-    fcz_alpha(:, 2) = squeeze(mean(squeeze(ersp_std_swi(:, idx_fcz, idx_alpha, :)), [1, 2]));
-    fcz_alpha(:, 3) = squeeze(mean(squeeze(ersp_bon_rep(:, idx_fcz, idx_alpha, :)), [1, 2]));
-    fcz_alpha(:, 4) = squeeze(mean(squeeze(ersp_bon_swi(:, idx_fcz, idx_alpha, :)), [1, 2]));
+    fcz_alpha(:, 1) = squeeze(mean(ersp_std_rep(:, idx_frontal, idx_alpha, :), [1, 2, 3]));
+    fcz_alpha(:, 2) = squeeze(mean(ersp_std_swi(:, idx_frontal, idx_alpha, :), [1, 2, 3]));
+    fcz_alpha(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_frontal, idx_alpha, :), [1, 2, 3]));
+    fcz_alpha(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_frontal, idx_alpha, :), [1, 2, 3]));
     writematrix(fcz_alpha, [PATH_OUT, 'lineplots_fcz_alpha.csv']);
 
     fcz_beta = zeros(length(tf_times), 4);
-    fcz_beta(:, 1) = squeeze(mean(squeeze(ersp_std_rep(:, idx_fcz, idx_beta, :)), [1, 2]));
-    fcz_beta(:, 2) = squeeze(mean(squeeze(ersp_std_swi(:, idx_fcz, idx_beta, :)), [1, 2]));
-    fcz_beta(:, 3) = squeeze(mean(squeeze(ersp_bon_rep(:, idx_fcz, idx_beta, :)), [1, 2]));
-    fcz_beta(:, 4) = squeeze(mean(squeeze(ersp_bon_swi(:, idx_fcz, idx_beta, :)), [1, 2]));
+    fcz_beta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_frontal, idx_beta, :), [1, 2, 3]));
+    fcz_beta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_frontal, idx_beta, :), [1, 2, 3]));
+    fcz_beta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_frontal, idx_beta, :), [1, 2, 3]));
+    fcz_beta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_frontal, idx_beta, :), [1, 2, 3]));
     writematrix(fcz_beta, [PATH_OUT, 'lineplots_fcz_beta.csv']);
 
     poz_delta = zeros(length(tf_times), 4);
-    poz_delta(:, 1) = squeeze(mean(squeeze(ersp_std_rep(:, idx_poz, idx_delta, :)), [1, 2]));
-    poz_delta(:, 2) = squeeze(mean(squeeze(ersp_std_swi(:, idx_poz, idx_delta, :)), [1, 2]));
-    poz_delta(:, 3) = squeeze(mean(squeeze(ersp_bon_rep(:, idx_poz, idx_delta, :)), [1, 2]));
-    poz_delta(:, 4) = squeeze(mean(squeeze(ersp_bon_swi(:, idx_poz, idx_delta, :)), [1, 2]));
+    poz_delta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_posterior, idx_delta, :), [1, 2, 3]));
+    poz_delta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_posterior, idx_delta, :), [1, 2, 3]));
+    poz_delta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_posterior, idx_delta, :), [1, 2, 3]));
+    poz_delta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_posterior, idx_delta, :), [1, 2, 3]));
     writematrix(poz_delta, [PATH_OUT, 'lineplots_poz_delta.csv']);
 
     poz_theta = zeros(length(tf_times), 4);
-    poz_theta(:, 1) = squeeze(mean(squeeze(ersp_std_rep(:, idx_poz, idx_theta, :)), [1, 2]));
-    poz_theta(:, 2) = squeeze(mean(squeeze(ersp_std_swi(:, idx_poz, idx_theta, :)), [1, 2]));
-    poz_theta(:, 3) = squeeze(mean(squeeze(ersp_bon_rep(:, idx_poz, idx_theta, :)), [1, 2]));
-    poz_theta(:, 4) = squeeze(mean(squeeze(ersp_bon_swi(:, idx_poz, idx_theta, :)), [1, 2]));
+    poz_theta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_posterior, idx_theta, :), [1, 2, 3]));
+    poz_theta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_posterior, idx_theta, :), [1, 2, 3]));
+    poz_theta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_posterior, idx_theta, :), [1, 2, 3]));
+    poz_theta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_posterior, idx_theta, :), [1, 2, 3]));
     writematrix(poz_theta, [PATH_OUT, 'lineplots_poz_theta.csv']);
 
     poz_alpha = zeros(length(tf_times), 4);
-    poz_alpha(:, 1) = squeeze(mean(squeeze(ersp_std_rep(:, idx_poz, idx_alpha, :)), [1, 2]));
-    poz_alpha(:, 2) = squeeze(mean(squeeze(ersp_std_swi(:, idx_poz, idx_alpha, :)), [1, 2]));
-    poz_alpha(:, 3) = squeeze(mean(squeeze(ersp_bon_rep(:, idx_poz, idx_alpha, :)), [1, 2]));
-    poz_alpha(:, 4) = squeeze(mean(squeeze(ersp_bon_swi(:, idx_poz, idx_alpha, :)), [1, 2]));
+    poz_alpha(:, 1) = squeeze(mean(ersp_std_rep(:, idx_posterior, idx_alpha, :), [1, 2, 3]));
+    poz_alpha(:, 2) = squeeze(mean(ersp_std_swi(:, idx_posterior, idx_alpha, :), [1, 2, 3]));
+    poz_alpha(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_posterior, idx_alpha, :), [1, 2, 3]));
+    poz_alpha(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_posterior, idx_alpha, :), [1, 2, 3]));
     writematrix(poz_alpha, [PATH_OUT, 'lineplots_poz_alpha.csv']);
 
     poz_beta = zeros(length(tf_times), 4);
-    poz_beta(:, 1) = squeeze(mean(squeeze(ersp_std_rep(:, idx_poz, idx_beta, :)), [1, 2]));
-    poz_beta(:, 2) = squeeze(mean(squeeze(ersp_std_swi(:, idx_poz, idx_beta, :)), [1, 2]));
-    poz_beta(:, 3) = squeeze(mean(squeeze(ersp_bon_rep(:, idx_poz, idx_beta, :)), [1, 2]));
-    poz_beta(:, 4) = squeeze(mean(squeeze(ersp_bon_swi(:, idx_poz, idx_beta, :)), [1, 2]));
+    poz_beta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_posterior, idx_beta, :), [1, 2, 3]));
+    poz_beta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_posterior, idx_beta, :), [1, 2, 3]));
+    poz_beta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_posterior, idx_beta, :), [1, 2, 3]));
+    poz_beta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_posterior, idx_beta, :), [1, 2, 3]));
     writematrix(poz_beta, [PATH_OUT, 'lineplots_poz_beta.csv']);
 
-
-
-
-
-
-
 end % End part 3
+
+% Part 4: Correlations
+if ismember('part4', to_execute)
+
+    % Collect ids
+    id_list = [];
+    for s = 1 : length(subject_list)
+        id_list(end + 1) = str2num(subject_list{s}(3 : 4));
+    end
+
+    % Load all the things
+    load([PATH_TF_DATA, 'chanlocs.mat']);
+    load([PATH_TF_DATA, 'tf_freqs.mat']);
+    load([PATH_TF_DATA, 'tf_times.mat']);
+    load([PATH_TF_DATA, 'ersp_std_rep.mat']);
+    load([PATH_TF_DATA, 'ersp_std_swi.mat']);
+    load([PATH_TF_DATA, 'ersp_bon_rep.mat']);
+    load([PATH_TF_DATA, 'ersp_bon_swi.mat']);
+    load([PATH_OUT, 'significant_clusters.mat']);
+    load([PATH_OUT 'neighbours.mat']);
+    load([PATH_OUT 'elec.mat']);
+
+    % Load self report measures
+    % 9 columns: 1=id, 2=correct questionnaire version, 3=cond_attended, 4=mot_std, 5=mot_bonus, 6=effort_std, 7=effort_bonus, 8=mw_std, 9=mw_bonus   
+    self_reports = readmatrix([PATH_SELF_REPORT, 'self_report_measures.csv']);
+
+    % Get ersp difference as bonus minus standard
+    ersp_diff = double((ersp_bon_rep + ersp_bon_swi) / 2) - double((ersp_std_rep + ersp_std_swi) / 2);
+
+    % Get dims
+    [n_subjects, n_channels, n_freqs, n_times] = size(ersp_diff);
+
+    % Define frontal and posterior sensor patches
+    idx_frontal = [17, 33, 34, 65, 66, 69, 70, 127];
+    idx_parietal = [19, 37, 38, 63, 71, 72, 99, 100];
+
+    % Get ERSP for frontal and parietal patches
+    ersp_diff_frontal = squeeze(mean(ersp_diff(:, idx_frontal, :, :), 2));
+    ersp_diff_parietal = squeeze(mean(ersp_diff(:, idx_parietal, :, :), 2));
+
+    % Build vectors for self report data
+    design_condat = [];
+    design_motiva = [];
+    design_effort = [];
+    design_mindwa = [];
+    for s = 1 : length(id_list)
+        sr_idx = self_reports(:, 1) == id_list(s);
+        design_condat(end + 1) = self_reports(sr_idx, 3);                              % Attended to reward condition
+        design_motiva(end + 1) = self_reports(sr_idx, 5) - self_reports(sr_idx, 4);    % Difference motivation
+        design_effort(end + 1) = self_reports(sr_idx, 7) - self_reports(sr_idx, 6);    % Difference effort
+        design_mindwa(end + 1) = self_reports(sr_idx, 9) - self_reports(sr_idx, 8);    % Difference mind wandering
+    end
+
+    % Get 2d reüresentation of ERSP data
+    ersp_diff_frontal_2d = reshape(ersp_diff_frontal, n_subjects, n_freqs * n_times);
+    ersp_diff_parietal_2d = reshape(ersp_diff_parietal, n_subjects, n_freqs * n_times);
+
+    % Group data
+    all_ersp_data = {ersp_diff_frontal_2d, ersp_diff_parietal_2d};
+    all_self_report_data = {design_condat, design_motiva, design_effort, design_mindwa};
+
+    % Loop!!!
+    figure()
+    counter = 0;
+    for loop1 = 1 : 2
+        for loop2 = 1 : 4
+
+            % Select data
+            self_report_data = all_self_report_data{loop2}';
+            ersp_data = all_ersp_data{loop1};
+
+            % Labels!!!
+            ersp_labels = {'frontal', 'parietal'};
+            self_report_labels = {'condat', 'motiva', 'effort', 'mindwa'};
+
+            % Get permutation distribution
+            n_perms = 1000;
+            minmax = zeros(n_perms, 2);
+            for np = 1 : n_perms
+
+                % Correlate
+                rho_permuted = reshape(corr(self_report_data(randperm(length(self_report_data))), ersp_data), n_freqs, n_times);
+
+                % Get p values
+                t_value = (rho_permuted .* sqrt(length(self_report_data) - 2)) ./ sqrt(ones(size(rho_permuted)) - rho_permuted.^2);
+                p_values = 1 - tcdf(abs(t_value), length(self_report_data) - 2);
+
+                % Set pixel threshold
+                outline = p_values < 0.05;
+
+                % Get cluster test statistics
+                clusts = bwconncomp(outline); 
+                sum_rho = [];
+                cluster_idx = {};
+                for clu = 1 : numel(clusts.PixelIdxList)
+                    cidx = clusts.PixelIdxList{clu};
+                    cluster_idx{clu} = cidx;
+                    sum_rho(end + 1) = sum(rho_permuted(cidx));
+                end
+
+                % Save min/max
+                minmax(np, :) = [min(sum_rho), max(sum_rho)];
+
+            end
+
+            % Get correlation for observed data
+            rho_to_test = reshape(corr(self_report_data, ersp_data), n_freqs, n_times);
+            
+            % Get p-values
+            t_value = (rho_to_test .* sqrt(length(self_report_data) - 2)) ./ sqrt(ones(size(rho_to_test)) - rho_to_test.^2);
+            p_values = 1 - tcdf(abs(t_value), length(self_report_data) - 2);
+
+            % Set pixel threshold
+            outline = p_values < 0.05;
+            outline_raw = outline;
+
+            % Get cluster test statistic
+            clusts = bwconncomp(outline); 
+            sum_rho = [];
+            cluster_idx = {};
+            for clu = 1 : numel(clusts.PixelIdxList)
+                cidx = clusts.PixelIdxList{clu};
+                cluster_idx{clu} = cidx;
+                sum_rho(end + 1) = sum(rho_to_test(cidx));
+            end
+
+            % Remove non-significant clusters
+            clust_thresh_lower = prctile(minmax(:, 1), 0.025 * 100);
+            clust_thresh_upper = prctile(minmax(:, 2), 100 - 0.025 * 100);
+            clust2remove = find(sum_rho > clust_thresh_lower & sum_rho < clust_thresh_upper);
+            for clu = 1 : length(clust2remove)
+                outline(clusts.PixelIdxList{clust2remove(clu)}) = 0;
+            end
+            cluster_idx(clust2remove) = [];
+            sum_rho(clust2remove) = [];
+
+            % Plot
+            counter = counter + 1;
+            subplot(2, 4, counter)
+            contourf(tf_times, tf_freqs, rho_to_test, 40, 'linecolor','none')
+            hold on
+            contour(tf_times, tf_freqs, outline, 1, 'linecolor', 'k', 'LineWidth', 2)
+            contour(tf_times, tf_freqs, outline_raw, 1, 'linecolor', 'm', 'LineWidth', 2)
+            set(gca, 'clim', [-1, 1], 'YScale', 'lin', 'YTick', [4, 8, 12, 20])
+            colormap('jet')
+            colorbar()
+            title([ersp_labels{loop1}, ' - ', self_report_labels{loop2}])
+
+        end
+    end
+
+
+
+
+
+
+end % End part 4
