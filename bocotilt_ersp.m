@@ -635,8 +635,208 @@ if ismember('part3', to_execute)
 
 end % End part 3
 
-% Part 4: Correlations
+% Part 4: Behavioral analysis
 if ismember('part4', to_execute)
+
+    % Init eeglab
+    addpath(PATH_EEGLAB);
+    eeglab;
+
+    % Loop subjects
+    behavior_rt = [];
+    behavior_ac = [];
+    behavior_pp = [];
+    for s = 1 : length(subject_list)
+
+        % participant identifiers
+        subject = subject_list{s};
+        id = str2num(subject(3 : 4));
+
+        % Load data
+        EEG = pop_loadset('filename', [subject_list{s} '_cleaned.set'], 'filepath', PATH_AUTOCLEANED, 'loadmode', 'info');
+
+        % Trialinfo columns
+        %  1: id
+        %  2: block_nr
+        %  3: trial_nr
+        %  4: bonustrial
+        %  5: tilt_task
+        %  6: cue_ax
+        %  7: target_red_left
+        %  8: distractor_red_left
+        %  9: response_interference
+        % 10: task_switch
+        % 11: prev_switch
+        % 12: prev_accuracy
+        % 13: correct_response
+        % 14: response_side
+        % 15: rt
+        % 16: rt_thresh_color
+        % 17: rt_thresh_tilt
+        % 18: accuracy
+        % 19: position_color
+        % 20: position_tilt
+        % 21: position_target
+        % 22: position_distractor    
+        % 23: sequence_position
+        % 24: Point(s) earned 
+
+        % Exclude trials
+        to_keep = EEG.trialinfo(:, 2) > 4 &...
+        EEG.trialinfo(:, 23) > 1;
+        EEG.trialinfo = EEG.trialinfo(to_keep, :);
+
+        % Add to trialinfo
+        for t = 1 : size(EEG.trialinfo, 1)
+
+            % If correct and color task and rt < color-thresh
+            if EEG.trialinfo(t, 18) == 1 & EEG.trialinfo(t, 5) == 0 & EEG.trialinfo(t, 15) <= EEG.trialinfo(t, 16)
+                EEG.trialinfo(t, 24) = 1;
+
+            % If correct and tilt task and rt < tilt-thresh
+            elseif EEG.trialinfo(t, 18) == 1 & EEG.trialinfo(t, 5) == 1 & EEG.trialinfo(t, 15) <= EEG.trialinfo(t, 17)
+                EEG.trialinfo(t, 24) = 1;
+
+            % else...
+            else
+                EEG.trialinfo(t, 24) = 0;
+            end
+        end
+
+        % Loop conditions
+        counter = 0;
+        for bon = 1 : 2
+            for swi = 1 : 2
+
+                counter = counter + 1;
+
+                % Get condition idx
+                idx_condition = EEG.trialinfo(:, 4) == bon - 1 & EEG.trialinfo(:, 10) == swi - 1;
+
+                % Get correct_idx for condition
+                idx_correct = EEG.trialinfo(:, 18) == 1 & idx_condition;
+
+                % Get correct_idx for condition
+                idx_points_earned = EEG.trialinfo(:, 24) == 1 & idx_condition;
+
+                % Get accuracy
+                ac = sum(idx_correct) / sum(idx_condition);
+
+                % Get rt
+                rt = mean(EEG.trialinfo(idx_correct, 15));
+
+                % % of points earned
+                pp = sum(idx_points_earned) / sum(idx_condition);
+
+
+                behavior_rt(s, counter) = rt;
+                behavior_ac(s, counter) = ac; 
+                behavior_pp(s, counter) = pp; 
+ 
+            end
+        end
+    end
+
+    % Perform rmANOVA for rt
+    varnames = {'id', 'b1', 'b2', 'b3', 'b4'};
+    t = table([1 : numel(subject_list)]', behavior_rt(:, 1), behavior_rt(:, 2), behavior_rt(:, 3), behavior_rt(:, 4), 'VariableNames', varnames);
+    within = table({'std'; 'std'; 'bon'; 'bon'}, {'rep'; 'swi'; 'rep'; 'swi'}, 'VariableNames', {'bonus', 'switch'});
+    rm = fitrm(t, 'b1-b4~1', 'WithinDesign', within);
+    anova_rt = ranova(rm, 'WithinModel', 'bonus + switch + bonus*switch');
+    anova_rt
+
+    % Perform rmANOVA for accuracy
+    varnames = {'id', 'b1', 'b2', 'b3', 'b4'};
+    t = table([1 : numel(subject_list)]', behavior_ac(:, 1), behavior_ac(:, 2), behavior_ac(:, 3), behavior_ac(:, 4), 'VariableNames', varnames);
+    within = table({'std'; 'std'; 'bon'; 'bon'}, {'rep'; 'swi'; 'rep'; 'swi'}, 'VariableNames', {'bonus', 'switch'});
+    rm = fitrm(t, 'b1-b4~1', 'WithinDesign', within);
+    anova_ac = ranova(rm, 'WithinModel', 'bonus + switch + bonus*switch');
+    anova_ac
+
+    % Perform rmANOVA for points earned
+    varnames = {'id', 'b1', 'b2', 'b3', 'b4'};
+    t = table([1 : numel(subject_list)]', behavior_pp(:, 1), behavior_pp(:, 2), behavior_pp(:, 3), behavior_pp(:, 4), 'VariableNames', varnames);
+    within = table({'std'; 'std'; 'bon'; 'bon'}, {'rep'; 'swi'; 'rep'; 'swi'}, 'VariableNames', {'bonus', 'switch'});
+    rm = fitrm(t, 'b1-b4~1', 'WithinDesign', within);
+    anova_pp = ranova(rm, 'WithinModel', 'bonus + switch + bonus*switch');
+    anova_pp
+
+    % Save behavioral data for veusz
+    rt_mean = mean(behavior_rt, 1);
+    rt_sd = std(behavior_rt, [], 1) / sqrt(length(subject_list));
+    rt_out = [rt_mean(1), rt_sd(1), rt_mean(3), rt_sd(3); rt_mean(2), rt_sd(2), rt_mean(4), rt_sd(4)];
+    dlmwrite([PATH_OUT, 'rt_veusz.csv'], rt_out, 'delimiter', '\t');
+
+    ac_mean = mean(behavior_ac, 1);
+    ac_sd = std(behavior_ac, [], 1) / sqrt(length(subject_list));
+    ac_out = [ac_mean(1), ac_sd(1), ac_mean(3), ac_sd(3); ac_mean(2), ac_sd(2), ac_mean(4), ac_sd(4)];
+    dlmwrite([PATH_OUT, 'ac_veusz.csv'], ac_out, 'delimiter', '\t');
+
+    pp_mean = mean(behavior_pp, 1);
+    pp_sd = std(behavior_pp, [], 1) / sqrt(length(subject_list));
+    pp_out = [pp_mean(1), pp_sd(1), pp_mean(3), pp_sd(3); pp_mean(2), pp_sd(2), pp_mean(4), pp_sd(4)];
+    dlmwrite([PATH_OUT, 'pp_veusz.csv'], pp_out, 'delimiter', '\t');
+
+    dlmwrite([PATH_OUT, 'xax.csv'], [1; 2]);
+
+
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+% Part 99: Correlations
+if ismember('part99', to_execute)
 
     % Collect ids
     id_list = [];
@@ -790,4 +990,4 @@ if ismember('part4', to_execute)
 
 
 
-end % End part 4
+end % End part 99
