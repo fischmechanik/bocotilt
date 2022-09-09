@@ -16,7 +16,7 @@ subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 
                 'VP29', 'VP30', 'VP31', 'VP32', 'VP33', 'VP34'};
 
 % SWITCH: Switch parts of script on/off
-to_execute = {'part4'};
+to_execute = {'part5'};
 
 % Part 1: Calculate ersp
 if ismember('part1', to_execute)
@@ -780,9 +780,47 @@ if ismember('part4', to_execute)
     dlmwrite([PATH_OUT, 'xax.csv'], [1; 2]);
 
 
-end
+end % End part 4
+
+% Part 5: Subjective data analysis
+if ismember('part5', to_execute)
+
+    % Collect ids
+    id_list = [];
+    for s = 1 : length(subject_list)
+        id_list(end + 1) = str2num(subject_list{s}(3 : 4));
+    end
+
+    % Load self report measures
+    % 9 columns: 1=id, 2=correct questionnaire version, 3=cond_attended, 4=mot_std, 5=mot_bonus, 6=effort_std, 7=effort_bonus, 8=mw_std, 9=mw_bonus   
+    self_reports = readmatrix([PATH_SELF_REPORT, 'self_report_measures.csv']);
+
+    % Exclude non used datasets
+    self_reports = self_reports(ismember(self_reports(:, 1), id_list), :);
+
+    % Include NaN
+    self_reports(self_reports == 99) = NaN;
+
+    % T-test stuff
+    [mot_sig, mot_p, mot_ci, mot_stat] = ttest(self_reports(:, 4), self_reports(:, 5));
+    [effo_sig, effo_p, effo_ci, effo_stat] = ttest(self_reports(:, 6), self_reports(:, 7));
+    [mw_sig, mw_p, mw_ci, mw_stat] = ttest(self_reports(:, 8), self_reports(:, 9));
 
 
+    self_reports_means = mean(self_reports(:, 4 : 9), 1, "omitnan");
+    self_reports_sem = std(self_reports(:, 4 : 9), [], 1, "omitnan") / sqrt(length(subject_list));
+    self_reports_out = [self_reports_means(1), self_reports_sem(1), self_reports_means(3), self_reports_sem(3), self_reports_means(5), self_reports_sem(5);...
+                        self_reports_means(2), self_reports_sem(2), self_reports_means(4), self_reports_sem(4), self_reports_means(6), self_reports_sem(6)];
+
+
+    
+    dlmwrite([PATH_OUT, 'self_reports_veusz.csv'], self_reports_out, 'delimiter', '\t');
+    dlmwrite([PATH_OUT, 'xax12.csv'], [1, 2], 'delimiter', '\t');
+
+
+
+
+end % End part 5
 
 
 
