@@ -76,7 +76,7 @@ def plot_decoding_result(
             )
 
     hf = plt.plot(times, T_obs, "m")
-    # ax2.legend((h,), ("cluster p-value < 0.05",))
+    #ax2.legend((h,), ("cluster p-value < 0.05",))
     ax2.set_xlabel("time (s)")
     ax2.set_ylabel("f-values")
 
@@ -104,39 +104,67 @@ for dataset in datasets:
     data = joblib.load(dataset)
 
     # Task decoding
-    ave_task_std.append(moving_average(data["auc"][0]))
-    ave_task_bon.append(moving_average(data["auc"][1]))
+    ave_task_std.append(moving_average(data["acc"][0]))
+    ave_task_bon.append(moving_average(data["acc"][1]))
 
     # Bonus decoding
-    tmp1 = (data["auc"][2] + data["auc"][3]) / 2
+    tmp1 = (data["acc"][2] + data["acc"][3]) / 2
     ave_bonus.append(moving_average(tmp1))
 
     # Cue decoding
-    tmp1 = (data["auc"][4] + data["auc"][5]) / 2
-    tmp2 = (data["auc"][6] + data["auc"][7]) / 2
+    tmp1 = (data["acc"][4] + data["acc"][5]) / 2
+    tmp2 = (data["acc"][6] + data["acc"][7]) / 2
     ave_cue_std.append(moving_average(tmp1))
     ave_cue_bon.append(moving_average(tmp2))
 
     # Response decoding
-    tmp1 = (data["auc"][8] + data["auc"][9]) / 2
-    tmp2 = (data["auc"][10] + data["auc"][11]) / 2
+    tmp1 = (data["acc"][8] + data["acc"][9]) / 2
+    tmp2 = (data["acc"][10] + data["acc"][11]) / 2
     ave_resp_std.append(moving_average(tmp1))
     ave_resp_bon.append(moving_average(tmp2))
 
     # Target decoding
-    tmp1 = (data["auc"][12] + data["auc"][13]) / 2
-    tmp2 = (data["auc"][14] + data["auc"][15]) / 2
+    tmp1 = (data["acc"][12] + data["acc"][13]) / 2
+    tmp2 = (data["acc"][14] + data["acc"][15]) / 2
     ave_target_std.append(moving_average(tmp1))
     ave_target_bon.append(moving_average(tmp2))
 
     # Distractor decoding
-    tmp1 = (data["auc"][16] + data["auc"][17]) / 2
-    tmp2 = (data["auc"][18] + data["auc"][19]) / 2
+    tmp1 = (data["acc"][16] + data["acc"][17]) / 2
+    tmp2 = (data["acc"][18] + data["acc"][19]) / 2
     ave_dist_std.append(moving_average(tmp1))
     ave_dist_bon.append(moving_average(tmp2))
 
 # Adjust time vector to smoothing function
 times = data["tf_times"][smowin - 1 :]
+
+# get condition data
+condition1 = np.stack(ave_task_std)
+condition2 = np.stack(ave_task_bon)
+
+# Task
+plot_decoding_result(
+    condition1,
+    condition2,
+    decode_label="task",
+    label_cond_1="standard",
+    label_cond_2="bonus",
+    f_thresh=2.0,
+)
+
+# get condition data
+condition1 = np.stack(ave_cue_std)
+condition2 = np.stack(ave_cue_bon)
+
+# Cue 
+plot_decoding_result(
+    condition1,
+    condition2,
+    decode_label="cue",
+    label_cond_1="standard",
+    label_cond_2="bonus",
+    f_thresh=2.0,
+)
 
 # get condition data
 condition1 = np.stack(ave_target_std)

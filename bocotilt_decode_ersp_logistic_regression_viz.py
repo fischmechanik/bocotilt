@@ -14,7 +14,7 @@ import numpy as np
 import mne
 
 # Path decoding data
-path_in = "/mnt/data_dump/bocotilt/3_decoded/"
+path_in = "/mnt/data_dump/bocotilt/3_decoded/log_reg_4freqs_binned_cc-oversampled/"
 
 # Get list of datasets
 datasets = glob.glob(f"{path_in}/*.joblib")
@@ -114,16 +114,24 @@ def plot_decoding_result(
 
     # Plot classifier performance
     ax1.plot(
-        times, data_std_rep.mean(axis=0), label="std-rep",
+        times,
+        data_std_rep.mean(axis=0),
+        label="std-rep",
     )
     ax1.plot(
-        times, data_std_swi.mean(axis=0), label="std-swi",
+        times,
+        data_std_swi.mean(axis=0),
+        label="std-swi",
     )
     ax1.plot(
-        times, data_bon_rep.mean(axis=0), label="bon-rep",
+        times,
+        data_bon_rep.mean(axis=0),
+        label="bon-rep",
     )
     ax1.plot(
-        times, data_bon_swi.mean(axis=0), label="bon-swi",
+        times,
+        data_bon_swi.mean(axis=0),
+        label="bon-swi",
     )
 
     ax1.set_ylabel("accuracy")
@@ -214,7 +222,46 @@ plot_decoding_result(
     task_std_swi,
     task_bon_rep,
     task_bon_swi,
-    decode_label="stuff",
+    decode_label="task",
     f_thresh=2.0,
 )
 
+# Plot
+plot_decoding_result(
+    cue_std_rep,
+    cue_std_swi,
+    cue_bon_rep,
+    cue_bon_swi,
+    decode_label="cue",
+    f_thresh=2.0,
+)
+
+# Plot
+plot_decoding_result(
+    response_std_rep,
+    response_std_swi,
+    response_bon_rep,
+    response_bon_swi,
+    decode_label="response",
+    f_thresh=2.0,
+)
+
+# Plot
+plot_decoding_result(
+    target_std_rep,
+    target_std_swi,
+    target_bon_rep,
+    target_bon_swi,
+    decode_label="target",
+    f_thresh=2.0,
+)
+
+# Plot
+plot_decoding_result(
+    distractor_std_rep,
+    distractor_std_swi,
+    distractor_bon_rep,
+    distractor_bon_swi,
+    decode_label="distractor",
+    f_thresh=2.0,
+)

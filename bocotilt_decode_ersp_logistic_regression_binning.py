@@ -8,7 +8,7 @@ import joblib
 import numpy as np
 import sklearn.model_selection
 import sklearn.metrics
-import sklearn.svm
+import sklearn.linear_model
 import sklearn.decomposition
 import mne
 import time
@@ -20,7 +20,7 @@ os.environ["JOBLIB_TEMP_FOLDER"] = "/tmp"
 
 # Define paths
 path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
-path_out = "/mnt/data_dump/bocotilt/3_decoded/"
+path_out = "/mnt/data_dump/bocotilt/3_decoded/log_reg_4freqs_binned_cc-oversampled/"
 
 # Function for bootstrapping averages
 def do_some_binning(data_in, n_batch, n_averages):
@@ -33,7 +33,7 @@ def do_some_binning(data_in, n_batch, n_averages):
 
 
 # Function performing random forest classification
-def svm_classification_binning(X, y, combined_codes):
+def logreg_classification_binning(X, y, combined_codes):
 
     # Oversampler
     oversampler = imblearn.over_sampling.RandomOverSampler(
@@ -45,7 +45,7 @@ def svm_classification_binning(X, y, combined_codes):
     kf = sklearn.model_selection.StratifiedKFold(n_splits=n_splits)
 
     # Init classifier
-    clf = sklearn.svm.LinearSVC()
+    clf = sklearn.linear_model.LogisticRegression()
 
     # Arrays for results
     acc = 0
@@ -224,8 +224,11 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
     )
 
     # Compress features
-    pca = sklearn.decomposition.PCA(n_components=0.8, svd_solver="full")
+    pca = sklearn.decomposition.PCA(n_components=0.9, svd_solver="full")
     X_all = pca.fit_transform(X_all)
+    
+    # lol
+    print(X_all.shape)
 
     # Decode labels
     decode_labels = []
@@ -250,7 +253,7 @@ def decode_timeslice(X_all, trialinfo, combined_codes):
         )
 
         # Train model
-        acc[model_nr] = svm_classification_binning(X, y, combined_codes)
+        acc[model_nr] = logreg_classification_binning(X, y, combined_codes)
 
     return {
         "decode_labels": decode_labels,
@@ -284,8 +287,8 @@ for dataset_idx, dataset in enumerate(datasets):
     eeg_epochs = mne.io.read_epochs_eeglab(dataset).apply_baseline(baseline=(-0.2, 0))
 
     # Perform single trial time-frequency analysis
-    tf_freqs = np.linspace(2, 20, 10)
-    tf_cycles = np.linspace(3, 12, 10)
+    tf_freqs = np.linspace(2, 31, 20)
+    tf_cycles = np.linspace(3, 14, 20)
     tf_epochs = mne.time_frequency.tfr_morlet(
         eeg_epochs,
         tf_freqs,
@@ -298,17 +301,9 @@ for dataset_idx, dataset in enumerate(datasets):
 
     # Apply baseline procedure
     tf_epochs.apply_baseline(mode="logratio", baseline=(-0.200, 0))
-
-    # Clean up
-    del eeg_epochs
-
+    
     # Prune in time
-    pruneframes = 80
-    tf_times = tf_epochs.times[pruneframes:-pruneframes]
-    tf_data = tf_epochs.data[:, :, :, pruneframes:-pruneframes]
-
-    # Clean up
-    del tf_epochs
+    tf_epochs.crop(tmin=-0.2, tmax=1.6)
 
     # Load trialinfo
     trialinfo = np.genfromtxt(
@@ -318,19 +313,24 @@ for dataset_idx, dataset in enumerate(datasets):
     # Positions of target and distractor are coded  1-8, starting at the top-right position, then counting counter-clockwise
 
     # Recode distractor and target positions in 4 bins 0-3 (c.f. https://www.nature.com/articles/s41598-019-45333-6)
-    # trialinfo[:, 19] = np.floor((trialinfo[:, 19] - 1) / 2)
-    # trialinfo[:, 20] = np.floor((trialinfo[:, 20] - 1) / 2)
+    trialinfo[:, 20] = np.floor((trialinfo[:, 20] - 1) / 2)
+    trialinfo[:, 21] = np.floor((trialinfo[:, 21] - 1) / 2)
 
     # Recode distractor and target positions in 2 bins 0-1 (roughly left vs right...)
-    trialinfo[:, 20] = np.floor((trialinfo[:, 20] - 1) / 4)
-    trialinfo[:, 21] = np.floor((trialinfo[:, 21] - 1) / 4)
+    #trialinfo[:, 20] = np.floor((trialinfo[:, 20] - 1) / 4)
+    #trialinfo[:, 21] = np.floor((trialinfo[:, 21] - 1) / 4)
 
-    # Exclude trials: Practice-block trials & first-of-sequence trials & non-correct trials
+    # Exclude trials: Practice-block trials & first-of-sequence trials & no response trials
     idx_to_keep = (
-        (trialinfo[:, 1] >= 5) & (trialinfo[:, 22] >= 3) & (trialinfo[:, 17] == 1)
+        (trialinfo[:, 1] >= 5) & (trialinfo[:, 22] >= 3) & (trialinfo[:, 13] != 2)
     )
     trialinfo = trialinfo[idx_to_keep, :]
-    tf_data = tf_data[idx_to_keep, :, :, :]
+    tf_data = tf_epochs.data[idx_to_keep, :, :, :]
+    tf_times = tf_epochs.times
+    
+    # Clean up
+    del eeg_epochs
+    del tf_epochs
 
     # get dims
     n_trials, n_channels, n_freqs, n_times = tf_data.shape
