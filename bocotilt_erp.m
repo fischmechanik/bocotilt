@@ -176,15 +176,48 @@ GA_diff_bon = ft_timelockgrandaverage(cfg, D{1, :});
 
 % Cluster permutation tests
 a_cluster_test('bonus-vs-standard', GA_bon, GA_std, 'bonus', 'standard', EEG.chanlocs, neighbours, PATH_OUTPUT, PATH_OUTPUT);
-
 a_cluster_test('switch-vs-repeat', GA_swi, GA_rep, 'switch', 'repeat', EEG.chanlocs, neighbours, PATH_OUTPUT, PATH_OUTPUT);
+a_cluster_test('interaction', GA_diff_bon, GA_diff_std, 'diffbon', 'diffstd', EEG.chanlocs, neighbours, PATH_OUTPUT, PATH_OUTPUT);
+
+% Plot some midline electrodes
+ga_erps = squeeze(mean(erp_matrix, 1));
+ga_std_rep = squeeze(ga_erps(1, 1, :, :));
+ga_std_swi = squeeze(ga_erps(1, 2, :, :));
+ga_bon_rep = squeeze(ga_erps(2, 1, :, :));
+ga_bon_swi = squeeze(ga_erps(2, 2, :, :));
 
 
+figure()
 
+subplot(3, 1, 1)
+plot(eeg_times, ga_std_rep(17, :), 'LineWidth', 2, 'Color', [1, 0, 0])
+hold on;
+plot(eeg_times, ga_std_swi(17, :), 'LineWidth', 2, 'Color', [0, 1, 0])
+plot(eeg_times, ga_bon_rep(17, :), 'LineWidth', 2, 'Color', [0, 0, 1])
+plot(eeg_times, ga_bon_swi(17, :), 'LineWidth', 2, 'Color', [1, 0, 1])
+title('Fz')
+legend({'std-rep', 'std-swi', 'bon-rep', 'bon-swi'})
+xline([0, 800])
 
+subplot(3, 1, 2)
+plot(eeg_times, ga_std_rep(18, :), 'LineWidth', 2, 'Color', [1, 0, 0])
+hold on;
+plot(eeg_times, ga_std_swi(18, :), 'LineWidth', 2, 'Color', [0, 1, 0])
+plot(eeg_times, ga_bon_rep(18, :), 'LineWidth', 2, 'Color', [0, 0, 1])
+plot(eeg_times, ga_bon_swi(18, :), 'LineWidth', 2, 'Color', [1, 0, 1])
+title('Cz')
+legend({'std-rep', 'std-swi', 'bon-rep', 'bon-swi'})
+xline([0, 800])
 
-
-
+subplot(3, 1, 3)
+plot(eeg_times, ga_std_rep(19, :), 'LineWidth', 2, 'Color', [1, 0, 0])
+hold on;
+plot(eeg_times, ga_std_swi(19, :), 'LineWidth', 2, 'Color', [0, 1, 0])
+plot(eeg_times, ga_bon_rep(19, :), 'LineWidth', 2, 'Color', [0, 0, 1])
+plot(eeg_times, ga_bon_swi(19, :), 'LineWidth', 2, 'Color', [1, 0, 1])
+title('Pz')
+legend({'std-rep', 'std-swi', 'bon-rep', 'bon-swi'})
+xline([0, 800])
 
 
 
