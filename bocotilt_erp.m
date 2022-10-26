@@ -82,390 +82,135 @@ for s = 1 : length(subject_list)
 
 end
 
-% % Build elec struct
-% for ch = 1 : size(erp_matrix, 4)
-%     elec.label{ch} = EEG.chanlocs(ch).labels;
-%     elec.elecpos(ch, :) = [EEG.chanlocs(ch).X, EEG.chanlocs(ch).Y, EEG.chanlocs(ch).Z];
-%     elec.chanpos(ch, :) = [EEG.chanlocs(ch).X, EEG.chanlocs(ch).Y, EEG.chanlocs(ch).Z];
-% end
+% Seperate cue and target erps
+idx_cue = eeg_times >= -200 & eeg_times <= 800;
+idx_target = eeg_times >= 600 & eeg_times <= 1600;
+erp_cue = erp_matrix(:, :, :, :, idx_cue);
+erp_target = erp_matrix(:, :, :, :, idx_target);
+cue_times = eeg_times(idx_cue);
+target_times = eeg_times(idx_target) - 800;
 
-% % Prepare layout
-% cfg      = [];
-% cfg.elec = elec;
-% cfg.rotate = 90;
-% layout = ft_prepare_layout(cfg);
-
-% Build chanlocs
-chanlabs = {};
-coords = [];
-for c = 1 : numel(EEG.chanlocs)
-    chanlabs{c} = EEG.chanlocs(c).labels;
-    coords(c, :) = [EEG.chanlocs(c).X, EEG.chanlocs(c).Y, EEG.chanlocs(c).Z];
+% Apply baseline to target erps
+for s = 1 : length(subject_list)
+    for rew = 1 : 2
+        for sw = 1 : 2
+            for ch = 1 : EEG.nbchan
+                tmp = squeeze(erp_target(s, rew, sw, ch, :));
+                bl = mean(tmp(target_times >= -200 & target_times <= 0));
+                erp_target(s, rew, sw, ch, :) = tmp - bl;
+            end
+        end
+    end
 end
 
- % A sensor struct
- sensors = struct();
- sensors.label = chanlabs;
- sensors.chanpos = coords;
- sensors.elecpos = coords;
+% Get frontal erps
+frontal_idx = [33, 17, 34, 65, 66, 21, 127, 22, 97, 98, 35, 18, 36];
+erp_all_frontal = squeeze(mean(erp_matrix(:, :, :, frontal_idx, :), 4));
+erp_cue_frontal = squeeze(mean(erp_cue(:, :, :, frontal_idx, :), 4));
+erp_target_frontal = squeeze(mean(erp_target(:, :, :, frontal_idx, :), 4));
 
- % Prepare neighbor struct
- cfg                 = [];
- cfg.elec            = sensors;
- cfg.feedback        = 'no';
- cfg.method          = 'triangulation'; 
- neighbours          = ft_prepare_neighbours(cfg);
+% Get posterior erps
+posterior_idx = [37, 19, 38, 71, 72, 45, 63, 46, 107, 108];
+erp_all_posterior = squeeze(mean(erp_matrix(:, :, :, posterior_idx, :), 4));
+erp_cue_posterior = squeeze(mean(erp_cue(:, :, :, posterior_idx, :), 4));
+erp_target_posterior = squeeze(mean(erp_target(:, :, :, posterior_idx, :), 4));
 
-% A template for GA structs
-cfg=[];
-cfg.keepindividual = 'yes';
-d = [];
-d.dimord = 'chan_time';
-d.label = chanlabs;
-d.time = eeg_times;
+% Get grand averages for plotting
+ga_cue_frontal_std_rep = mean(squeeze(erp_cue_frontal(:, 1, 1, :)), 1);
+ga_cue_frontal_std_swi = mean(squeeze(erp_cue_frontal(:, 1, 2, :)), 1);
+ga_cue_frontal_bon_rep = mean(squeeze(erp_cue_frontal(:, 2, 1, :)), 1);
+ga_cue_frontal_bon_swi = mean(squeeze(erp_cue_frontal(:, 2, 2, :)), 1);
 
-% Build GA struct standard
-D = {};
-for s = 1 : size(erp_matrix, 1)
-    d.avg = squeeze(mean(erp_matrix(s, 1, :, :, :), 3));
-    D{s} = d;
-end 
-GA_std = ft_timelockgrandaverage(cfg, D{1, :});
-%GA_std.dimord = 'subj_chan_time';
+ga_target_frontal_std_rep = mean(squeeze(erp_target_frontal(:, 1, 1, :)), 1);
+ga_target_frontal_std_swi = mean(squeeze(erp_target_frontal(:, 1, 2, :)), 1);
+ga_target_frontal_bon_rep = mean(squeeze(erp_target_frontal(:, 2, 1, :)), 1);
+ga_target_frontal_bon_swi = mean(squeeze(erp_target_frontal(:, 2, 2, :)), 1);
 
-% Build GA struct bonus
-D = {};
-for s = 1 : size(erp_matrix, 1)
-    d.avg = squeeze(mean(erp_matrix(s, 2, :, :, :), 3));
-    D{s} = d;
-end 
-GA_bon = ft_timelockgrandaverage(cfg, D{1, :});
-%GA_bon.dimord = 'subj_chan_time';
+ga_cue_posterior_std_rep = mean(squeeze(erp_cue_posterior(:, 1, 1, :)), 1);
+ga_cue_posterior_std_swi = mean(squeeze(erp_cue_posterior(:, 1, 2, :)), 1);
+ga_cue_posterior_bon_rep = mean(squeeze(erp_cue_posterior(:, 2, 1, :)), 1);
+ga_cue_posterior_bon_swi = mean(squeeze(erp_cue_posterior(:, 2, 2, :)), 1);
 
-% Build GA struct repeat
-D = {};
-for s = 1 : size(erp_matrix, 1)
-    d.avg = squeeze(mean(erp_matrix(s, :, 1, :, :), 2));
-    D{s} = d;
-end 
-GA_rep = ft_timelockgrandaverage(cfg, D{1, :});
+ga_target_posterior_std_rep = mean(squeeze(erp_target_posterior(:, 1, 1, :)), 1);
+ga_target_posterior_std_swi = mean(squeeze(erp_target_posterior(:, 1, 2, :)), 1);
+ga_target_posterior_bon_rep = mean(squeeze(erp_target_posterior(:, 2, 1, :)), 1);
+ga_target_posterior_bon_swi = mean(squeeze(erp_target_posterior(:, 2, 2, :)), 1);
 
-% Build GA struct switch
-D = {};
-for s = 1 : size(erp_matrix, 1)
-    d.avg = squeeze(mean(erp_matrix(s, :, 2, :, :), 2));
-    D{s} = d;
-end 
-GA_swi = ft_timelockgrandaverage(cfg, D{1, :});
+ga_all_frontal_std_rep = mean(squeeze(erp_all_frontal(:, 1, 1, :)), 1);
+ga_all_frontal_std_swi = mean(squeeze(erp_all_frontal(:, 1, 2, :)), 1);
+ga_all_frontal_bon_rep = mean(squeeze(erp_all_frontal(:, 2, 1, :)), 1);
+ga_all_frontal_bon_swi = mean(squeeze(erp_all_frontal(:, 2, 2, :)), 1);
 
-% Build GA struct switch-repeat in standard
-D = {};
-for s = 1 : size(erp_matrix, 1)
-    d.avg = squeeze(erp_matrix(s, 1, 2, :, :)) - squeeze(erp_matrix(s, 1, 1, :, :));
-    D{s} = d;
-end 
-GA_diff_std = ft_timelockgrandaverage(cfg, D{1, :});
-
-% Build GA struct switch-repeat in bonus
-D = {};
-for s = 1 : size(erp_matrix, 1)
-    d.avg = squeeze(erp_matrix(s, 2, 2, :, :)) - squeeze(erp_matrix(s, 2, 1, :, :));
-    D{s} = d;
-end 
-GA_diff_bon = ft_timelockgrandaverage(cfg, D{1, :});
-
-% Cluster permutation tests
-a_cluster_test('bonus-vs-standard', GA_bon, GA_std, 'bonus', 'standard', EEG.chanlocs, neighbours, PATH_OUTPUT, PATH_OUTPUT);
-a_cluster_test('switch-vs-repeat', GA_swi, GA_rep, 'switch', 'repeat', EEG.chanlocs, neighbours, PATH_OUTPUT, PATH_OUTPUT);
-a_cluster_test('interaction', GA_diff_bon, GA_diff_std, 'diffbon', 'diffstd', EEG.chanlocs, neighbours, PATH_OUTPUT, PATH_OUTPUT);
-
-% Plot some midline electrodes
-ga_erps = squeeze(mean(erp_matrix, 1));
-ga_std_rep = squeeze(ga_erps(1, 1, :, :));
-ga_std_swi = squeeze(ga_erps(1, 2, :, :));
-ga_bon_rep = squeeze(ga_erps(2, 1, :, :));
-ga_bon_swi = squeeze(ga_erps(2, 2, :, :));
+ga_all_posterior_std_rep = mean(squeeze(erp_all_posterior(:, 1, 1, :)), 1);
+ga_all_posterior_std_swi = mean(squeeze(erp_all_posterior(:, 1, 2, :)), 1);
+ga_all_posterior_bon_rep = mean(squeeze(erp_all_posterior(:, 2, 1, :)), 1);
+ga_all_posterior_bon_swi = mean(squeeze(erp_all_posterior(:, 2, 2, :)), 1);
 
 
 figure()
 
-subplot(3, 1, 1)
-plot(eeg_times, ga_std_rep(17, :), 'LineWidth', 2, 'Color', [1, 0, 0])
+subplot(2, 2, 1)
+plot(cue_times, ga_cue_frontal_std_rep, 'k-', 'LineWidth', 2)
 hold on;
-plot(eeg_times, ga_std_swi(17, :), 'LineWidth', 2, 'Color', [0, 1, 0])
-plot(eeg_times, ga_bon_rep(17, :), 'LineWidth', 2, 'Color', [0, 0, 1])
-plot(eeg_times, ga_bon_swi(17, :), 'LineWidth', 2, 'Color', [1, 0, 1])
-title('Fz')
-legend({'std-rep', 'std-swi', 'bon-rep', 'bon-swi'})
+plot(cue_times, ga_cue_frontal_std_swi, 'k:', 'LineWidth', 2)
+plot(cue_times, ga_cue_frontal_bon_rep, 'r-', 'LineWidth', 2)
+plot(cue_times, ga_cue_frontal_bon_swi, 'r:', 'LineWidth', 2)
+title('cue - frontal')
+legend({'std-rep', 'std-swi', 'bon-rep', 'bon-swi', 'stim-onset'})
+xline([0])
+
+subplot(2, 2, 2)
+plot(target_times, ga_target_frontal_std_rep, 'k-', 'LineWidth', 2)
+hold on;
+plot(target_times, ga_target_frontal_std_swi, 'k:', 'LineWidth', 2)
+plot(target_times, ga_target_frontal_bon_rep, 'r-', 'LineWidth', 2)
+plot(target_times, ga_target_frontal_bon_swi, 'r:', 'LineWidth', 2)
+title('target - frontal')
+xline([0])
+
+subplot(2, 2, 3)
+plot(cue_times, ga_cue_posterior_std_rep, 'k-', 'LineWidth', 2)
+hold on;
+plot(cue_times, ga_cue_posterior_std_swi, 'k:', 'LineWidth', 2)
+plot(cue_times, ga_cue_posterior_bon_rep, 'r-', 'LineWidth', 2)
+plot(cue_times, ga_cue_posterior_bon_swi, 'r:', 'LineWidth', 2)
+title('cue - posterior')
+xline([0])
+
+subplot(2, 2, 4)
+plot(target_times, ga_target_posterior_std_rep, 'k-', 'LineWidth', 2)
+hold on;
+plot(target_times, ga_target_posterior_std_swi, 'k:', 'LineWidth', 2)
+plot(target_times, ga_target_posterior_bon_rep, 'r-', 'LineWidth', 2)
+plot(target_times, ga_target_posterior_bon_swi, 'r:', 'LineWidth', 2)
+title('target - posterior')
+xline([0])
+
+
+
+
+figure()
+
+subplot(2, 1, 1)
+plot(eeg_times, ga_all_frontal_std_rep, 'k-', 'LineWidth', 2)
+hold on;
+plot(eeg_times, ga_all_frontal_std_swi, 'k:', 'LineWidth', 2)
+plot(eeg_times, ga_all_frontal_bon_rep, 'r-', 'LineWidth', 2)
+plot(eeg_times, ga_all_frontal_bon_swi, 'r:', 'LineWidth', 2)
+title('frontal')
+legend({'std-rep', 'std-swi', 'bon-rep', 'bon-swi', 'stim-onset'})
 xline([0, 800])
 
-subplot(3, 1, 2)
-plot(eeg_times, ga_std_rep(18, :), 'LineWidth', 2, 'Color', [1, 0, 0])
+subplot(2, 1, 2)
+plot(eeg_times, ga_all_posterior_std_rep, 'k-', 'LineWidth', 2)
 hold on;
-plot(eeg_times, ga_std_swi(18, :), 'LineWidth', 2, 'Color', [0, 1, 0])
-plot(eeg_times, ga_bon_rep(18, :), 'LineWidth', 2, 'Color', [0, 0, 1])
-plot(eeg_times, ga_bon_swi(18, :), 'LineWidth', 2, 'Color', [1, 0, 1])
-title('Cz')
-legend({'std-rep', 'std-swi', 'bon-rep', 'bon-swi'})
-xline([0, 800])
-
-subplot(3, 1, 3)
-plot(eeg_times, ga_std_rep(19, :), 'LineWidth', 2, 'Color', [1, 0, 0])
-hold on;
-plot(eeg_times, ga_std_swi(19, :), 'LineWidth', 2, 'Color', [0, 1, 0])
-plot(eeg_times, ga_bon_rep(19, :), 'LineWidth', 2, 'Color', [0, 0, 1])
-plot(eeg_times, ga_bon_swi(19, :), 'LineWidth', 2, 'Color', [1, 0, 1])
-title('Pz')
-legend({'std-rep', 'std-swi', 'bon-rep', 'bon-swi'})
+plot(eeg_times, ga_all_posterior_std_swi, 'k:', 'LineWidth', 2)
+plot(eeg_times, ga_all_posterior_bon_rep, 'r-', 'LineWidth', 2)
+plot(eeg_times, ga_all_posterior_bon_swi, 'r:', 'LineWidth', 2)
+title('posterior')
 xline([0, 800])
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-% Function that performs test and creates cluster-plots
-function[] = a_cluster_test(titlestring, cond1, cond2, cond1string, cond2string, chanlocs, neighbours, PATH_PLOT, PATH_VEUSZ)
-
-    % Create output directory
-    mkdir([PATH_PLOT, titlestring])
-    PATH_OUTPUT = [PATH_PLOT, titlestring, '/'];
-
-    % Testparams
-    testalpha  = 0.025;
-    voxelalpha  = 0.01;
-    nperm = 1000;
-
-    % Set config
-    cfg = [];
-    cfg.tail             = 0;
-    cfg.statistic        = 'depsamplesT';
-    cfg.alpha            = testalpha;
-    cfg.neighbours       = neighbours;
-    cfg.minnbchan        = 2;
-    cfg.method           = 'montecarlo';
-    cfg.correctm         = 'cluster';
-    cfg.clustertail      = 0;
-    cfg.clusteralpha     = voxelalpha;
-    cfg.clusterstatistic = 'maxsum';
-    cfg.numrandomization = nperm;
-    cfg.computecritval   = 'yes'; 
-    cfg.ivar             = 1;
-    cfg.uvar             = 2;
-    cfg.design           = [ones(1, size(cond1.individual, 1)), 2 * ones(1, size(cond1.individual, 1)); 1 : size(cond1.individual, 1), 1 : size(cond1.individual, 1)];
-    
-    % The test
-    [stat] = ft_timelockstatistics(cfg, cond1, cond2);  
-
-    % Calculate effect sizes
-    apes = [];
-    n_subjects = size(cond1.individual, 1);
-    for ch = 1 : numel(chanlocs)
-        petasq = (squeeze(stat.stat(ch, :)) .^ 2) ./ ((squeeze(stat.stat(ch, :)) .^ 2) + (n_subjects - 1));
-        apes(ch, :) = petasq - (1 - petasq) .* (1 / (n_subjects - 1));
-    end
-
-    % Plot effect sizes
-    cmap = 'jet';
-    clim = [-0.6, 0.6];
-    figure('Visible', 'off'); clf;
-    contourf(stat.time, [1 : numel(cond1.label)], apes, 40, 'linecolor','none')
-    colormap(cmap)
-    set(gca, 'clim', [clim])
-    colorbar;
-    title(['effect sizes: ', titlestring])
-    saveas(gcf, [PATH_OUTPUT, 'effect_sizes_', titlestring, '.png']);
-
-    % Plot conditions
-    pd1 = squeeze(mean(cond1.individual, 1));
-    pd2 = squeeze(mean(cond2.individual, 1));
-    cmap = 'jet';
-    lim = max(abs([pd1(:); pd2(:)]));
-    clim = [-lim, lim];
-    figure('Visible', 'off'); clf;
-    subplot(1, 2, 1)
-    contourf(stat.time, [1 : numel(cond1.label)], pd1, 40, 'linecolor','none')
-    colormap(cmap)
-    set(gca, 'clim', [clim])
-    title(cond1string)
-    subplot(1, 2, 2)
-    contourf(stat.time, [1 : numel(cond1.label)], pd2, 40, 'linecolor','none')
-    colormap(cmap)
-    set(gca, 'clim', [clim])
-    title(cond2string)
-    saveas(gcf, [PATH_OUTPUT, 'ersp_', titlestring, '.png']);
-
-    % Save effect sizes
-    dlmwrite([PATH_VEUSZ, titlestring, '_effect_sizes.csv'], apes);
-
-    % Save averages
-    dlmwrite([PATH_VEUSZ, titlestring, '_' cond1string '_average.csv'], squeeze(mean(cond1.individual, 1)));
-    dlmwrite([PATH_VEUSZ, titlestring, '_' cond2string '_average.csv'], squeeze(mean(cond2.individual, 1)));
-    dlmwrite([PATH_VEUSZ, titlestring, '_difference.csv'], squeeze(mean(cond1.individual, 1)) - squeeze(mean(cond2.individual, 1)));
-
-    % Set threshold to 0.025
-    sig_pos = find([stat.posclusters.prob] <= testalpha);
-    sig_neg = find([stat.negclusters.prob] <= testalpha);
-
-    % Plot clusters
-    if sig_pos
-        for cl = 1 : length(sig_pos)
-
-            % Indices of the cluster
-            idx = stat.posclusterslabelmat == sig_pos(cl);
-            pval = round(stat.posclusters(sig_pos(cl)).prob, 3);
-
-            % Save contour of cluster
-            dlmwrite([PATH_VEUSZ, titlestring, '_contour_poscluster_', num2str(sig_pos(cl)), '.csv'], idx);
-
-            % Identify significant channels and time points
-            chans_sig = find(sum(idx, 2));
-            times_sig = find(sum(idx, 1));
-
-            % Plot a topo of effect sizes
-            markercolor = 'k';
-            markersize = 10;
-            cmap = 'jet';
-            clim = [-0.5, 0.5];
-            figure('Visible', 'off'); clf;
-            pd = mean(apes(:, times_sig), 2);
-            topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {chans_sig, 'p', markercolor, markersize, 1});
-            colormap(cmap);
-            caxis(clim);
-            saveas(gcf, [PATH_OUTPUT, [titlestring, '_effectsize_topo_pos_'], num2str(sig_pos(cl)), '.png']);
-
-            % Plot
-            markercolor = 'k';
-            markersize = 10;
-            cmap = 'jet';
-            clim = [-5, 5];
-            figure('Visible', 'off'); clf;
-
-            subplot(2, 2, 1)
-            pd = squeeze(mean(cond1.individual, 1));
-            contourf(stat.time, [1 : numel(cond1.label)], pd, 40, 'linecolor','none')
-            hold on
-            contour(stat.time, [1 : numel(cond1.label)], idx, 1, 'linecolor', 'k', 'LineWidth', 2)
-            colormap(cmap)
-            set(gca, 'clim', [clim])
-            colorbar;
-            title(cond1string)
-
-            subplot(2, 2, 2)
-            pd = squeeze(mean(cond2.individual, 1));
-            contourf(stat.time, [1 : numel(cond1.label)], pd, 40, 'linecolor','none')
-            hold on
-            contour(stat.time, [1 : numel(cond1.label)], idx, 1, 'linecolor', 'k', 'LineWidth', 2)
-            colormap(cmap)
-            set(gca, 'clim', [clim])
-            colorbar;
-            title(cond2string)
-            
-            subplot(2, 2, 3)
-            pd = squeeze(mean(cond1.individual, 1));
-            pd = mean(pd(:, times_sig), 2);
-            topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {chans_sig, 'p', markercolor, markersize, 1});
-            colormap(cmap);
-            caxis(clim);
-            title(['poscluster #' num2str(sig_pos(cl)) ' - p=' num2str(pval)])
-
-            subplot(2, 2, 4)
-            pd = squeeze(mean(cond2.individual, 1));
-            pd = mean(pd(:, times_sig), 2);
-            topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {chans_sig, 'p', markercolor, markersize, 1});
-            colormap(cmap);
-            caxis(clim);
-            title(['poscluster #' num2str(sig_pos(cl)) ' - p=' num2str(pval)])
-
-            saveas(gcf, [PATH_OUTPUT, [titlestring, '_pos_'], num2str(sig_pos(cl)), '.png']);
-        end
-    end
-    if sig_neg
-        for cl = 1 : length(sig_neg)
-
-            % Indices of the cluster
-            idx = stat.negclusterslabelmat == sig_neg(cl);
-            pval = round(stat.negclusters(sig_neg(cl)).prob, 3);
-
-            % Save contour of cluster
-            dlmwrite([PATH_VEUSZ, titlestring, '_contour_negcluster_', num2str(sig_neg(cl)), '.csv'], idx);
-            
-            % Identify significant channels and time points
-            chans_sig = find(sum(idx, 2));
-            times_sig = find(sum(idx, 1));
-
-            % Plot a topo of effect sizes
-            markercolor = 'k';
-            markersize = 10;
-            cmap = 'jet';
-            clim = [-0.5, 0.5];
-            figure('Visible', 'off'); clf;
-            pd = mean(apes(:, times_sig), 2);
-            topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {chans_sig, 'p', markercolor, markersize, 1});
-            colormap(cmap);
-            caxis(clim);
-            saveas(gcf, [PATH_OUTPUT, [titlestring, '_effectsize_topo_neg_'], num2str(sig_neg(cl)), '.png']);
-
-            % Plot
-            markercolor = 'k';
-            markersize = 10;
-            cmap = 'jet';
-            clim = [-5, 5];
-            figure('Visible', 'off'); clf;
-
-            subplot(2, 2, 1)
-            pd = squeeze(mean(cond1.individual, 1));
-            contourf(stat.time, [1 : numel(cond1.label)], pd, 40, 'linecolor','none')
-            hold on
-            contour(stat.time, [1 : numel(cond1.label)], idx, 1, 'linecolor', 'k', 'LineWidth', 2)
-            colormap(cmap)
-            set(gca, 'clim', [clim])
-            colorbar;
-            title(cond1string)
-
-            subplot(2, 2, 2)
-            pd = squeeze(mean(cond2.individual, 1));
-            contourf(stat.time, [1 : numel(cond1.label)], pd, 40, 'linecolor','none')
-            hold on
-            contour(stat.time, [1 : numel(cond1.label)], idx, 1, 'linecolor', 'k', 'LineWidth', 2)
-            colormap(cmap)
-            set(gca, 'clim', [clim])
-            colorbar;
-            title(cond2string)
-            
-            subplot(2, 2, 3)
-            pd = squeeze(mean(cond1.individual, 1));
-            pd = mean(pd(:, times_sig), 2);
-            topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {chans_sig, 'p', markercolor, markersize, 1});
-            colormap(cmap);
-            caxis(clim);
-            title(['negcluster #' num2str(sig_neg(cl)) ' - p=' num2str(pval)])
-
-            subplot(2, 2, 4)
-            pd = squeeze(mean(cond2.individual, 1));
-            pd = mean(pd(:, times_sig), 2);
-            topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {chans_sig, 'p', markercolor, markersize, 1});
-            colormap(cmap);
-            caxis(clim);
-            title(['negcluster #' num2str(sig_neg(cl)) ' - p=' num2str(pval)])
-
-            saveas(gcf, [PATH_OUTPUT, [titlestring, '_neg_'], num2str(sig_neg(cl)), '.png']);
-        end
-    end
-end % End function
