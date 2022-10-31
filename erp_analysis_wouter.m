@@ -2,9 +2,14 @@
 % At the beginning of a script this can help to prevent chaos...
 clear all;
 
+% Here ist the ERP data:
+% https://ocfromthefuture.ifado.de:8081/owncloud/index.php/s/b0tt4Xa5yXxF15v
+% Downoad and save to a folder.
+
 % First, set up some path variables
 path_erp_data = '/home/plkn/Desktop/erp_analysis_wouter/'; % (The path to the erp-data file)
 path_eeglab   = '/home/plkn/eeglab/'; % (you need to download eeglab and put the path to the folder here)
+path_results  = '/home/plkn/Desktop/erp_analysis_wouter/'; % Same as input path for now. But can be anything...
 
 % Initialize eeglab 
 addpath(path_eeglab);
@@ -118,7 +123,7 @@ end
 frontal_idx = [33, 17, 34, 65, 66, 21, 127, 22, 97, 98, 35, 18, 36];
 posterior_idx = [37, 19, 38, 71, 72, 45, 63, 46, 107, 108];
 
-% Plot these electrode patches
+% Plot these electrode patches to show which electrodes are included
 figure()
 subplot(1, 2, 1)
 topoplot(ones(1, 127), chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {frontal_idx, '.', 'k', 14, 1});
@@ -140,8 +145,67 @@ time_idx = eeg_times >= 500 & eeg_times <= 700;
 
 % We use loops to iterate participants and conditions
 
+% We want to store our results here (initialize as an empty matrix)
+anova_table = [];
+
 % Loop participants
-for s = 1 : size(data, 1) % First dimension has length of number of participants...
+for s = 1 : size(erp_matrix, 1) % First dimension has length of number of participants...
 
+    % A counter
+    counter = 0;
 
+    % Loop high versus low reward
+    for rew = 1 : 2
+
+        % Loop repeat / switch
+        for sw = 1 : 2
+
+            % Since we have a specific subject-condition combination here, we
+            % can index the matrix accordingly. In time and space we are not specific
+            % yet, as we have a patch of electrodes and multiple timepoints constitute
+            % The time window. So we average across these dimensions. The result is a
+            % single value.
+            erp_value = squeeze(mean(erp_matrix(s, rew, sw, posterior_idx, time_idx), [4, 5]));
+
+            % Increase counter
+            counter = counter + 1;
+
+            % Now we store this value in the 'anova_table'. We need the counter for this to
+            % find the correct column.
+            anova_table(s, counter) = erp_value;
+
+        end
+    end
 end
+
+% You can now save this table as a csv file to use in R or SPSS or whatever...
+writematrix(anova_table, [path_results, 'anova_table.csv']);
+
+% As an alternative, Matlab has also an ANOVA function. It is a bit clunky, but
+% if you know how to set it up it works just fine. 
+% An example:
+varnames = {'id', 'cond1', 'cond2', 'cond3', 'cond4'};
+t = table([1 : size(erp_matrix, 1)]', anova_table(:, 1), anova_table(:, 2), anova_table(:, 3), anova_table(:, 4), 'VariableNames', varnames);
+within = table({'std'; 'std'; 'bon'; 'bon'}, {'rep'; 'swi'; 'rep'; 'swi'}, 'VariableNames', {'bonus', 'switch'});
+rm = fitrm(t, 'cond1-cond4~1', 'WithinDesign', within);
+anova_posterior_p3 = ranova(rm, 'WithinModel', 'bonus + switch + bonus*switch');
+
+% Print anova results to matlab console
+anova_posterior_p3
+
+% Lets get the posterior ERPs again, for all conditions
+erp_posterior_low_reward_repeat  = squeeze(mean(erp_matrix(:, 1, 1, posterior_idx, :), [1, 4]));
+erp_posterior_low_reward_switch  = squeeze(mean(erp_matrix(:, 1, 2, posterior_idx, :), [1, 4]));
+erp_posterior_high_reward_repeat = squeeze(mean(erp_matrix(:, 2, 1, posterior_idx, :), [1, 4]));
+erp_posterior_high_reward_switch = squeeze(mean(erp_matrix(:, 2, 2, posterior_idx, :), [1, 4]));
+
+% Lets plot all conditions in a single plot
+figure()
+plot(eeg_times, erp_posterior_low_reward_repeat, 'k-', 'LineWidth', 2)
+hold on;
+plot(eeg_times, erp_posterior_low_reward_switch, 'k:', 'LineWidth', 2)
+plot(eeg_times, erp_posterior_high_reward_repeat, 'r-', 'LineWidth', 2)
+plot(eeg_times, erp_posterior_high_reward_switch, 'r:', 'LineWidth', 2)
+title('posterior electrodes ERP')
+legend({'low-repeat', 'low-switch', 'high-repeat', 'high-switch', 'target-onset'})
+xline([0, 800])
