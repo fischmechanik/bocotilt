@@ -412,7 +412,7 @@ for dataset_idx, dataset in enumerate(datasets):
 
     # Exclude trials: Practice-block trials & first-of-sequence trials & no response trials
     idx_to_keep = (
-        (trialinfo[:, 1] >= 5) & (trialinfo[:, 22] >= 3) & (trialinfo[:, 13] != 2)
+        (trialinfo[:, 1] >= 5) & (trialinfo[:, 22] >= 2) & (trialinfo[:, 13] != 2)
     )
     trialinfo = trialinfo[idx_to_keep, :]
     tf_data = tf_epochs.data[idx_to_keep, :, :, :]
