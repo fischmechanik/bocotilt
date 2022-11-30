@@ -3,7 +3,7 @@
 clear all;
 
 % Path variables
-PATH_EEGLAB      = '/home/plkn/eeglab2022.0/';
+PATH_EEGLAB      = '/home/plkn/eeglab2022.1/';
 PATH_AUTOCLEANED = '/mnt/data_dump/bocotilt/2_autocleaned/';
 PATH_TF_DATA     = '/mnt/data_dump/bocotilt/4_ersp/';
 PATH_FIELDTRIP   = '/home/plkn/fieldtrip-master/';
@@ -16,7 +16,7 @@ subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 
                 'VP29', 'VP30', 'VP31', 'VP32', 'VP33', 'VP34'};
 
 % SWITCH: Switch parts of script on/off
-to_execute = {'part5'};
+to_execute = {'part4'};
 
 % Part 1: Calculate ersp
 if ismember('part1', to_execute)
@@ -737,6 +737,8 @@ if ismember('part4', to_execute)
         end
     end
 
+    save('behavioral_data.mat', 'behavior_rt', 'behavior_ac')
+
     % Perform rmANOVA for rt
     varnames = {'id', 'b1', 'b2', 'b3', 'b4'};
     t = table([1 : numel(subject_list)]', behavior_rt(:, 1), behavior_rt(:, 2), behavior_rt(:, 3), behavior_rt(:, 4), 'VariableNames', varnames);
@@ -752,7 +754,7 @@ if ismember('part4', to_execute)
     rm = fitrm(t, 'b1-b4~1', 'WithinDesign', within);
     anova_ac = ranova(rm, 'WithinModel', 'bonus + switch + bonus*switch');
     anova_ac
-
+    aa=bb
     % Perform rmANOVA for points earned
     varnames = {'id', 'b1', 'b2', 'b3', 'b4'};
     t = table([1 : numel(subject_list)]', behavior_pp(:, 1), behavior_pp(:, 2), behavior_pp(:, 3), behavior_pp(:, 4), 'VariableNames', varnames);
