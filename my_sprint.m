@@ -71,95 +71,36 @@ for ch = 1 : n_channel
         % Select window data (time x epoch)
         win_data = squeeze(eeg_data(ch, win_idx, :));
 
-        % No need to enforce removing DC component (0 frequency).
-        win_data = win_data - mean(win_data, 2);
+        % Remove DC component (0 frequency)
+        win_data = bsxfun(@minus, win_data, mean(win_data, 1));
 
         % Apply a Hann window to signal
         win_data = win_data .* hann_win;
 
         % Compute FFT
-        win_data_fft = fft(win_data, nfft, 1);
-
-        % Normalize
-        win_data_fft = win_data_fft / hann_win_noise_power_gain;
+        win_data_fft = (2 * abs(fft(win_data, nfft, 1) / nfft)) .^ 2;
 
         % Get first half of power spectrum
         win_data_fft = win_data_fft(1 : nfft / 2 + 1, :);
-        
+
         % Multiply by 2 (except DC & Nyquist) 
         win_data_fft(2 : end - 1, :) = win_data_fft(2 : end - 1, :) * 2;
-
-        % Divide by fs and square for power
-        win_data_fft = (win_data_fft / fs);
-
-        % Convert to power
-        win_data_fft = abs(win_data_fft) .^ 2;
-
+        
         % Save
         spectrograms(ch, w, :, :) = win_data_fft;
     
     end
 end
 
-spectrograms = squeeze(mean(spectrograms(127, :, :, :), 4));
+
+for w = 1 : 5 : n_win
+    pd = squeeze(spectrograms(127, w, :, :));
+    pd = mean(pd, 2);
+    plot(fft_freqs, pd)
+    hold on
+end
 
 
-figure()
-plot(fft_freqs, squeeze(mean(spectrograms(2, :, :), 4)))
-contourf(fft_freqs, win_center_times, spectrograms)
-
-
-aa=bb
-
-    % Initialize STFT, time matrices
-    ts = nan(Nwin-(avgWin-1),1);
-    TF = nan(size(F,1), Nwin-(avgWin-1), size(FreqVector,2));
-    TFtmp = nan(size(F,1), avgWin, size(FreqVector,2));
-
-    % ===== CALCULATE FFT FOR EACH WINDOW =====
-    TFfull = zeros(size(F, 1), Nwin, size(FreqVector, 2));
-    for iWin = 1 : Nwin
-
-        % Build indices
-        iTimes = (1:Lwin) + (iWin-1)*(Lwin - Loverlap);
-        center_time = floor(median((iTimes-(avgWin-1)./2*(Lwin - Loverlap))))./sfreq;
-
-        % Select indices
-        Fwin = F(:, iTimes);
-
-        % No need to enforce removing DC component (0 frequency).
-        Fwin = Fwin - mean(Fwin, 2);
-
-        % Apply a Hann window to signal
-        Fwin = Fwin .* Win;
-
-        % Compute FFT
-        Ffft = fft(Fwin, NFFT, 2);
-
-        % One-sided spectrum (keep only first half)
-        % (x2 to recover full power from negative frequencies)
-        TFwin = Ffft(:, 1 : NFFT / 2 + 1) * sqrt(2 ./ (sfreq * WinNoisePowerGain));
-
-        % x2 doesn't apply to DC and Nyquist.
-        TFwin(:, [1, end]) = TFwin(:, [1, end]) ./ sqrt(2);
-
-        % Permute dimensions: time and frequency
-        TFwin = permute(TFwin, [1 3 2]);
-
-        % Convert to power
-        TFwin = abs(TFwin).^2;
-        TFfull(:, iWin, :) = TFwin;
-        TFtmp(:, mod(iWin, avgWin) + 1, :) = TFwin;
-
-        if isnan(TFtmp(1, 1, 1)) 
-            continue % Do not record anything until transient is gone
-        else
-            % Save STFTs for window
-            TF(:, iWin - (avgWin - 1), :) = mean(TFtmp, 2);
-            ts(iWin - (avgWin - 1)) = center_time;
-        end
-    end
-
-    % From here on TF is expected to be 3 dimensional (channels x times x freqs)
+% From here on TF is expected to be 3 dimensional (channels x times x freqs)
 
 
