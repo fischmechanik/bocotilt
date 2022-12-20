@@ -105,12 +105,14 @@ for dataset_idx, dataset in enumerate(datasets):
         # Get dims
         n_epochs, n_channel, n_times = eeg_epochs_cond.get_data().shape
 
-        x = eeg_epochs_cond.get_data()
+        # Select data
+        idx_time = (eeg_epochs_cond.times > 0) & (eeg_epochs_cond.times < 0.8)
+        tmp = eeg_epochs_cond.get_data()[:, :, idx_time]
 
         # Compute spectrum
         spectra, fooof_freqs = mne.time_frequency.psd_array_welch(
-            x,
-            200,
+            tmp,
+            100,
             fmin=1,
             fmax=40,
             n_fft=1024,
@@ -137,6 +139,8 @@ for dataset_idx, dataset in enumerate(datasets):
 
             # Report: fit the model, print the resulting parameters, and plot the reconstruction
             fm.fit(fooof_freqs, fooof_spectrum, fooof_freq_range)
+            
+            fm.plot()
         
             # get theta peaks
             theta_peaks.append(fooof.analysis.get_band_peak_fm(fm, [2, 7]))
