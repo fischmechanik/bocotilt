@@ -117,7 +117,6 @@ for dataset_idx, dataset in enumerate(datasets):
             fmax=40,
             n_fft=1024,
             n_overlap=128,
-            n_per_seg=200,
             n_jobs=-2,
             average="mean",
             window="hamming",
