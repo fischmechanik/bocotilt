@@ -25,10 +25,10 @@ import fooof
 datasets = glob.glob(f"{path_in}/*cleaned.set")
 
 # A result list
-results = []
+results = np.zeros((26, 4, 62))
 
 # Loop datasets
-for dataset_idx, dataset in enumerate(datasets):
+for counter_subject, dataset in enumerate(datasets):
 
     # Get subject id as string
     id_string = dataset.split("VP")[1][0:2]
@@ -86,66 +86,59 @@ for dataset_idx, dataset in enumerate(datasets):
         "bonus_switch": (df_trialinfo["bonus"] == 1)
         & (df_trialinfo["task_switch"] == 1),
     }
-
-    # Initialize result dict
-    result_data = {
-        "a": [],
-        "b": [],
-        "c": [],
-    }
-
-    pf = []
     
     # Loop factor level combinations
-    for cond in condition_idx:
+    for counter_condition, cond in enumerate(condition_idx):
 
         # Select epochs
         eeg_epochs_cond = eeg_epochs[condition_idx[cond]]
 
         # Get dims
-        n_epochs, n_channel, n_times = eeg_epochs_cond.get_data().shape
-
-        # Select data
-        idx_time = (eeg_epochs_cond.times > 0) & (eeg_epochs_cond.times < 0.8)
-        tmp = eeg_epochs_cond.get_data()[:, :, idx_time]
-
-        # Compute spectrum
-        spectra, fooof_freqs = mne.time_frequency.psd_array_welch(
-            tmp,
-            100,
-            fmin=1,
-            fmax=40,
-            n_fft=1024,
-            n_overlap=128,
-            n_jobs=-2,
-            average="mean",
-            window="hamming",
-        )
-
-        # Initialize FOOOF
-        fm = fooof.FOOOF()
+        n_epochs, n_channel, n_times = eeg_epochs_cond.get_data().shape     
         
-        # Set the frequency range to fit the fooof model
-        fooof_freq_range = [2, 40]
+        # Loop time
+        for counter_time, idx_winstart in enumerate(range(0, n_times - 100, 10)):
 
-        theta_peaks = []
+            # Select data (trial x time)
+            tmp = eeg_epochs_cond.get_data()[:, 126, idx_winstart : idx_winstart + 100]
 
-        # Loop trials
-        for epoch in range(n_epochs):
+            # Compute spectrum
+            spectra, fooof_freqs = mne.time_frequency.psd_array_welch(
+                tmp,
+                100,
+                fmin=1,
+                fmax=40,
+                n_fft=1024,
+                n_per_seg=1024,
+                n_jobs=-2,
+                average="mean",
+                window="hamming",
+            )
+
+            # Initialize FOOOF
+            fm = fooof.FOOOF()
             
-            # Select spectrum 
-            fooof_spectrum = spectra[epoch, 126, :]
-
-            # Report: fit the model, print the resulting parameters, and plot the reconstruction
-            fm.fit(fooof_freqs, fooof_spectrum, fooof_freq_range)
+            # Set the frequency range to fit the fooof model
+            fooof_freq_range = [2, 40]
+    
+            theta_peaks = []
+    
+            # Loop trials
+            for epoch in range(n_epochs):
+                
+                # Select spectrum 
+                fooof_spectrum = spectra[epoch, :]
+    
+                # Report: fit the model
+                fm.fit(fooof_freqs, fooof_spectrum, fooof_freq_range)
+                
+                # get theta peaks
+                theta_peaks.append(fooof.analysis.get_band_peak_fm(fm, [3, 8]))
             
-            fm.plot()
-        
-            # get theta peaks
-            theta_peaks.append(fooof.analysis.get_band_peak_fm(fm, [2, 7]))
-        
-        # Collect for each condition
-        pf.append(np.nanmean(np.stack(theta_peaks)[:, 0]))
+            # Get average theta peak frequency
+            results[counter_subject, counter_condition, counter_time] = np.nanmean(np.stack(theta_peaks)[:, 0])
+            
+            
         
     aa=bb
         
