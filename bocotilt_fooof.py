@@ -12,8 +12,8 @@ import sys
 import matplotlib.pyplot as plt
 
 # Define paths
-path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
-path_fooof = "/home/plkn/Downloads/fooof/"
+path_in = "/mnt/data2/bocotilt/2_autocleaned/"
+path_fooof = "/home/plkn/fooof/"
 
 # Append fooof to sys path
 sys.path.append(path_fooof)
@@ -23,9 +23,6 @@ import fooof
 
 # Iterate preprocessed datasets
 datasets = glob.glob(f"{path_in}/*cleaned.set")
-
-# A result list
-results = np.zeros((26, 4, 62))
 
 # Loop datasets
 for counter_subject, dataset in enumerate(datasets):
@@ -94,19 +91,24 @@ for counter_subject, dataset in enumerate(datasets):
         eeg_epochs_cond = eeg_epochs[condition_idx[cond]]
 
         # Get dims
-        n_epochs, n_channel, n_times = eeg_epochs_cond.get_data().shape     
+        n_epochs, n_channel, n_times = eeg_epochs_cond.get_data().shape
         
-        # Loop time
-        for counter_time, idx_winstart in enumerate(range(0, n_times - 100, 10)):
+        # Get time window idx
+        idx_timewins = ((eeg_epochs_cond.times >= -0.8) & (eeg_epochs_cond.times < 0),
+                        (eeg_epochs_cond.times >= 0) & (eeg_epochs_cond.times < 0.8),
+                        (eeg_epochs_cond.times >= 0.8) & (eeg_epochs_cond.times < 1.6))
 
+        # Loop timewins
+        for timewin_nr, timewin_idx in enumerate(idx_timewins):
+            
             # Select data (trial x time)
-            tmp = eeg_epochs_cond.get_data()[:, 126, idx_winstart : idx_winstart + 100]
+            tmp = eeg_epochs_cond.get_data()[:, 126, timewin_idx]
 
             # Compute spectrum
             spectra, fooof_freqs = mne.time_frequency.psd_array_welch(
                 tmp,
-                100,
-                fmin=1,
+                srate,
+                fmin=2,
                 fmax=40,
                 n_fft=1024,
                 n_per_seg=1024,
@@ -117,35 +119,42 @@ for counter_subject, dataset in enumerate(datasets):
 
             # Initialize FOOOF
             fm = fooof.FOOOF()
-            
+
             # Set the frequency range to fit the fooof model
             fooof_freq_range = [2, 40]
-    
+
             theta_peaks = []
-    
+
             # Loop trials
             for epoch in range(n_epochs):
-                
-                # Select spectrum 
+
+                # Select spectrum
                 fooof_spectrum = spectra[epoch, :]
-    
+
                 # Report: fit the model
                 fm.fit(fooof_freqs, fooof_spectrum, fooof_freq_range)
-                
+
                 # get theta peaks
-                theta_peaks.append(fooof.analysis.get_band_peak_fm(fm, [3, 8]))
-            
+                theta_peaks.append(fooof.analysis.get_band_peak_fm(fm, [4, 8]))
+
             # Get average theta peak frequency
-            results[counter_subject, counter_condition, counter_time] = np.nanmean(np.stack(theta_peaks)[:, 0])
-            
-            
-        
-    aa=bb
-        
-
-
-
-
-
-
-
+            results[counter_subject, counter_condition, counter_time] = np.nanmean(
+                np.stack(theta_peaks)[:, 0]
+            )
+    
+    # Exampleplotting
+    pd = results[0, :, :].T
+    fig, ax = plt.subplots()
+    ax.plot(center_times, pd[:, 0], label="std rep")
+    ax.plot(center_times, pd[:, 1], label="std swi")
+    ax.plot(center_times, pd[:, 2], label="bon rep")
+    ax.plot(center_times, pd[:, 3], label="bon swi")
+    ax.legend()
+    ax.set_title(f"win width {win_length/srate}s")
+    
+    
+    
+    
+    
+    
+    
