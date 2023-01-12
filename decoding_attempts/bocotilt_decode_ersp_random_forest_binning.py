@@ -356,7 +356,6 @@ for dataset_idx, dataset in enumerate(datasets):
     out_file = os.path.join(path_out, f"{id_string}_decoding_data.joblib")
 
     # Skip if file exists already
-    out_file = os.path.join(path_out, f"{id_string}_decoding_data.joblib")
     if os.path.isfile(out_file):
         continue
 
