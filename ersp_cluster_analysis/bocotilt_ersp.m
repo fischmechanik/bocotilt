@@ -139,15 +139,6 @@ if ismember('part1', to_execute)
         idx_bon_rep = EEG.trialinfo(:, 4) == 1 & EEG.trialinfo(:, 10) == 0;
         idx_bon_swi = EEG.trialinfo(:, 4) == 1 & EEG.trialinfo(:, 10) == 1;
 
-        % Determine minimal number of trials
-        min_n = min([sum(idx_std_rep), sum(idx_std_swi), sum(idx_bon_rep), sum(idx_bon_swi)]);
-        
-        % Draw balanced samples
-        idx_std_rep_balanced = randsample(idx_std_rep, min_n);
-        idx_std_swi_balanced = randsample(idx_std_swi, min_n);
-        idx_bon_rep_balanced = randsample(idx_bon_rep, min_n);
-        idx_bon_swi_balanced = randsample(idx_bon_swi, min_n);
-
         % Loop channels
         parfor ch = 1 : EEG.nbchan
 

@@ -78,9 +78,9 @@ for counter_subject, dataset in enumerate(datasets):
 
     # Get time window idx
     idx_timewins = (
-        (eeg_times >= -500) & (eeg_times < 0),
-        (eeg_times >= 300) & (eeg_times < 800),
-        (eeg_times >= 1100) & (eeg_times < 1600),
+        (eeg_times >= -800) & (eeg_times < 0),
+        (eeg_times >= 0) & (eeg_times < 800),
+        (eeg_times >= 800) & (eeg_times < 1600),
     )
 
     # Init output

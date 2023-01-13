@@ -17,7 +17,7 @@ addpath(PATH_EEGLAB);
 eeglab;
 
 % SWITCH: Switch parts of script on/off
-to_execute = {'part1'};
+to_execute = {'part1', 'part2'};
 
 % Part 1: Calculate ged
 if ismember('part1', to_execute)
@@ -93,8 +93,8 @@ if ismember('part1', to_execute)
         eeg_data_filtered = eeg_data_filtered(:, crop_idx, :);
 
         % Find indices of time points for S & R selection
-		tidx_S = (times >= 100 & times <= 700);
-		tidx_R = (times >= 100 & times <= 700);
+		tidx_S = (times >= 300 & times <= 800);
+		tidx_R = (times >= 300 & times <= 800);
         
         % Init arrays for trial-specific covariance matrices
         covmats_S = zeros(size(eeg_data, 3), size(eeg_data, 1), size(eeg_data, 1));
@@ -223,3 +223,326 @@ if ismember('part1', to_execute)
     end % End subject iteration
 
 end % End part1
+
+% Part 2: tf-analysis
+if ismember('part2', to_execute)
+
+    % Set complex Morlet wavelet parameters
+    srate = 200;
+    n_frq = 20;
+    frqrange = [2, 20];
+    tfres_range = [500, 200];
+
+    % Set wavelet time
+    wtime = -2 : 1 / srate : 2;
+
+    % Determine fft frqs
+    hz = linspace(0, srate, length(wtime));
+
+    % Create wavelet frequencies and tapering Gaussian widths in temporal domain
+    tf_freqs = logspace(log10(frqrange(1)), log10(frqrange(2)), n_frq);
+    fwhmTs = logspace(log10(tfres_range(1)), log10(tfres_range(2)), n_frq);
+
+    % Init matrices for wavelets
+    cmw = zeros(length(tf_freqs), length(wtime));
+    cmwX = zeros(length(tf_freqs), length(wtime));
+    tlim = zeros(1, length(tf_freqs));
+
+    % These will contain the wavelet widths as full width at 
+    % half maximum in the temporal and spectral domain
+    obs_fwhmT = zeros(1, length(tf_freqs));
+    obs_fwhmF = zeros(1, length(tf_freqs));
+
+    % Create the wavelets
+    for frq = 1 : length(tf_freqs)
+
+        % Create wavelet with tapering gaussian corresponding to desired width in temporal domain
+        cmw(frq, :) = exp(2 * 1i * pi * tf_freqs(frq) .* wtime) .* exp((-4 * log(2) * wtime.^2) ./ (fwhmTs(frq) / 1000)^2);
+
+        % Normalize wavelet
+        cmw(frq, :) = cmw(frq, :) ./ max(cmw(frq, :));
+
+        % Create normalized freq domain wavelet
+        cmwX(frq, :) = fft(cmw(frq, :)) ./ max(fft(cmw(frq, :)));
+
+        % Determine observed fwhmT
+        midt = dsearchn(wtime', 0);
+        cmw_amp = abs(cmw(frq, :)) ./ max(abs(cmw(frq, :))); % Normalize cmw amplitude
+        obs_fwhmT(frq) = wtime(midt - 1 + dsearchn(cmw_amp(midt : end)', 0.5)) - wtime(dsearchn(cmw_amp(1 : midt)', 0.5));
+
+        % Determine observed fwhmF
+        idx = dsearchn(hz', tf_freqs(frq));
+        cmwx_amp = abs(cmwX(frq, :)); 
+        obs_fwhmF(frq) = hz(idx - 1 + dsearchn(cmwx_amp(idx : end)', 0.5) - dsearchn(cmwx_amp(1 : idx)', 0.5));
+
+    end
+
+    % Define time window of analysis
+    prune_times = [-500, 2000];
+    load([PATH_GED, 'component_time_series/', subject_list{1}, '_ged_component.mat']);
+    tf_times = times(dsearchn(times', prune_times(1)) : dsearchn(times', prune_times(2)));
+
+    % Result matrices
+    ersp_std_rep = single(zeros(length(subject_list), length(tf_freqs), length(tf_times)));
+    ersp_std_swi = single(zeros(length(subject_list), length(tf_freqs), length(tf_times)));
+    ersp_bon_rep = single(zeros(length(subject_list), length(tf_freqs), length(tf_times)));
+    ersp_bon_swi = single(zeros(length(subject_list), length(tf_freqs), length(tf_times)));
+
+    % Loop subjects
+    for s = 1 : length(subject_list)
+
+        % participant identifiers
+        subject = subject_list{s};
+        id = str2num(subject(3 : 4));
+
+        % Talk
+        fprintf('\ntf-decompose subject %i/%i\n', s, length(subject_list));
+
+        % Load data
+        load([PATH_GED, 'component_time_series/', subject, '_ged_component.mat']);
+
+        % Squeeze
+        cmp_data = squeeze(cmp_time_series);
+
+        % Get condition idx
+        idx_std_rep = trialinfo(:, 4) == 0 & trialinfo(:, 10) == 0;
+        idx_std_swi = trialinfo(:, 4) == 0 & trialinfo(:, 10) == 1;
+        idx_bon_rep = trialinfo(:, 4) == 1 & trialinfo(:, 10) == 0;
+        idx_bon_swi = trialinfo(:, 4) == 1 & trialinfo(:, 10) == 1;
+
+        % Init tf matrices
+        powcube = NaN(length(tf_freqs), size(cmp_data, 1), size(cmp_data, 2));
+
+        % convolution length
+        convlen = size(cmp_data, 1) * size(cmp_data, 2) + size(cmw, 2) - 1;
+
+        % cmw to freq domain and scale
+        cmwX = zeros(length(tf_freqs), convlen);
+        for f = 1 : length(tf_freqs)
+            cmwX(f, :) = fft(cmw(f, :), convlen);
+            cmwX(f, :) = cmwX(f, :) ./ max(cmwX(f, :));
+        end
+
+        % Get TF-power
+        tmp = fft(reshape(cmp_data, 1, []), convlen);
+        for f = 1 : length(tf_freqs)
+            as = ifft(cmwX(f, :) .* tmp); 
+            as = as(((size(cmw, 2) - 1) / 2) + 1 : end - ((size(cmw, 2) - 1) / 2));
+            as = reshape(as, size(cmp_data, 1), size(cmp_data, 2));
+            powcube(f, :, :) = abs(as) .^ 2;   
+        end
+        
+        % Cut edges
+        powcube = powcube(:, dsearchn(times', -500) : dsearchn(times', 2000), :);
+
+        % Get condition general baseline values
+        ersp_bl = [-500, -200];
+        tmp = squeeze(mean(powcube, 3));
+        [~, blidx1] = min(abs(tf_times - ersp_bl(1)));
+        [~, blidx2] = min(abs(tf_times - ersp_bl(2)));
+        blvals = squeeze(mean(tmp(:, blidx1 : blidx2), 2));
+
+        % Calculate ersp
+        ersp_std_rep(s, :, :) = single(10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_std_rep), 3)), blvals)));
+        ersp_std_swi(s, :, :) = single(10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_std_swi), 3)), blvals)));
+        ersp_bon_rep(s, :, :) = single(10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_bon_rep), 3)), blvals)));
+        ersp_bon_swi(s, :, :) = single(10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_bon_swi), 3)), blvals)));
+
+    end % End subject iteration
+
+    % Permtest params
+    n_perms = 1000;
+    pval_voxel = 0.01;
+    pval_cluster = 0.05;
+
+    % Test reward
+    d1 = (ersp_std_rep + ersp_std_swi) / 2;
+    d2 = (ersp_bon_rep + ersp_bon_swi) / 2;
+    n_freq = length(tf_freqs);
+    n_time = length(tf_times);
+    permuted_t = zeros(n_perms, n_freq, n_time);
+    max_clust = zeros(n_perms, 2);
+    desmat = [zeros(length(subject_list), 1), ones(length(subject_list), 1)];
+    for p = 1 : n_perms
+        fprintf('%i\n', p);
+        toflip = find(round(rand(length(subject_list), 1)));
+        d1_perm = d1;
+        d1_perm(toflip, :, :) = d2(toflip, :, :);
+        d2_perm = d2;
+        d2_perm(toflip, :, :) = d1(toflip, :, :);
+        tnum = squeeze(mean(d1_perm - d2_perm, 1));
+        tdenum = squeeze(std(d1_perm - d2_perm, 0, 1)) / sqrt(length(subject_list));
+        fake_t = tnum ./ tdenum;
+        permuted_t(p, :, :) = fake_t;
+        fake_t(abs(fake_t) < tinv(1 - pval_voxel, length(subject_list) - 1)) = 0;
+        clusts = bwconncomp(fake_t);
+        sum_t = [];
+        for clu = 1 : numel(clusts.PixelIdxList)
+            cidx = clusts.PixelIdxList{clu};
+            sum_t(end + 1) = sum(fake_t(cidx));
+        end
+        max_clust(p, 1) = min([0, sum_t]);
+        max_clust(p, 2) = max([0, sum_t]);      
+    end
+    tnum = squeeze(mean(d1 - d2, 1));
+    tdenum = squeeze(std(d1 - d2, 0, 1)) / sqrt(length(subject_list));
+    tmat = tnum ./ tdenum;
+    tvals = tmat;
+    tmat(abs(tmat) < tinv(1 - pval_voxel, length(subject_list) - 1)) = 0;
+    threshtvals = tmat;
+    clusts = bwconncomp(tmat);
+    sum_t = [];
+    for clu = 1 : numel(clusts.PixelIdxList)
+        cidx = clusts.PixelIdxList{clu};
+        sum_t(end + 1) = sum(tmat(cidx));
+    end
+    clust_thresh_lower = prctile(max_clust(:, 1), pval_cluster * 100);
+    clust_thresh_upper = prctile(max_clust(:, 2), 100 - pval_cluster * 100);
+    clust2remove = find(sum_t > clust_thresh_lower & sum_t < clust_thresh_upper);
+    for clu = 1 : length(clust2remove)
+        tmat(clusts.PixelIdxList{clust2remove(clu)}) = 0;
+    end
+    contour_reward = logical(tmat);
+
+    % Test switch
+    d1 = (ersp_std_rep + ersp_bon_rep) / 2;
+    d2 = (ersp_std_swi + ersp_bon_swi) / 2;
+    n_freq = length(tf_freqs);
+    n_time = length(tf_times);
+    permuted_t = zeros(n_perms, n_freq, n_time);
+    max_clust = zeros(n_perms, 2);
+    desmat = [zeros(length(subject_list), 1), ones(length(subject_list), 1)];
+    for p = 1 : n_perms
+        fprintf('%i\n', p);
+        toflip = find(round(rand(length(subject_list), 1)));
+        d1_perm = d1;
+        d1_perm(toflip, :, :) = d2(toflip, :, :);
+        d2_perm = d2;
+        d2_perm(toflip, :, :) = d1(toflip, :, :);
+        tnum = squeeze(mean(d1_perm - d2_perm, 1));
+        tdenum = squeeze(std(d1_perm - d2_perm, 0, 1)) / sqrt(length(subject_list));
+        fake_t = tnum ./ tdenum;
+        permuted_t(p, :, :) = fake_t;
+        fake_t(abs(fake_t) < tinv(1 - pval_voxel, length(subject_list) - 1)) = 0;
+        clusts = bwconncomp(fake_t);
+        sum_t = [];
+        for clu = 1 : numel(clusts.PixelIdxList)
+            cidx = clusts.PixelIdxList{clu};
+            sum_t(end + 1) = sum(fake_t(cidx));
+        end
+        max_clust(p, 1) = min([0, sum_t]);
+        max_clust(p, 2) = max([0, sum_t]);      
+    end
+    tnum = squeeze(mean(d1 - d2, 1));
+    tdenum = squeeze(std(d1 - d2, 0, 1)) / sqrt(length(subject_list));
+    tmat = tnum ./ tdenum;
+    tvals = tmat;
+    tmat(abs(tmat) < tinv(1 - pval_voxel, length(subject_list) - 1)) = 0;
+    threshtvals = tmat;
+    clusts = bwconncomp(tmat);
+    sum_t = [];
+    for clu = 1 : numel(clusts.PixelIdxList)
+        cidx = clusts.PixelIdxList{clu};
+        sum_t(end + 1) = sum(tmat(cidx));
+    end
+    clust_thresh_lower = prctile(max_clust(:, 1), pval_cluster * 100);
+    clust_thresh_upper = prctile(max_clust(:, 2), 100 - pval_cluster * 100);
+    clust2remove = find(sum_t > clust_thresh_lower & sum_t < clust_thresh_upper);
+    for clu = 1 : length(clust2remove)
+        tmat(clusts.PixelIdxList{clust2remove(clu)}) = 0;
+    end
+    contour_switch = logical(tmat);
+
+    % Test interaction
+    d1 = (ersp_std_swi - ersp_std_rep);
+    d2 = (ersp_bon_swi - ersp_bon_rep);
+    n_freq = length(tf_freqs);
+    n_time = length(tf_times);
+    permuted_t = zeros(n_perms, n_freq, n_time);
+    max_clust = zeros(n_perms, 2);
+    desmat = [zeros(length(subject_list), 1), ones(length(subject_list), 1)];
+    for p = 1 : n_perms
+        fprintf('%i\n', p);
+        toflip = find(round(rand(length(subject_list), 1)));
+        d1_perm = d1;
+        d1_perm(toflip, :, :) = d2(toflip, :, :);
+        d2_perm = d2;
+        d2_perm(toflip, :, :) = d1(toflip, :, :);
+        tnum = squeeze(mean(d1_perm - d2_perm, 1));
+        tdenum = squeeze(std(d1_perm - d2_perm, 0, 1)) / sqrt(length(subject_list));
+        fake_t = tnum ./ tdenum;
+        permuted_t(p, :, :) = fake_t;
+        fake_t(abs(fake_t) < tinv(1 - pval_voxel, length(subject_list) - 1)) = 0;
+        clusts = bwconncomp(fake_t);
+        sum_t = [];
+        for clu = 1 : numel(clusts.PixelIdxList)
+            cidx = clusts.PixelIdxList{clu};
+            sum_t(end + 1) = sum(fake_t(cidx));
+        end
+        max_clust(p, 1) = min([0, sum_t]);
+        max_clust(p, 2) = max([0, sum_t]);      
+    end
+    tnum = squeeze(mean(d1 - d2, 1));
+    tdenum = squeeze(std(d1 - d2, 0, 1)) / sqrt(length(subject_list));
+    tmat = tnum ./ tdenum;
+    tvals = tmat;
+    tmat(abs(tmat) < tinv(1 - pval_voxel, length(subject_list) - 1)) = 0;
+    threshtvals = tmat;
+    clusts = bwconncomp(tmat);
+    sum_t = [];
+    for clu = 1 : numel(clusts.PixelIdxList)
+        cidx = clusts.PixelIdxList{clu};
+        sum_t(end + 1) = sum(tmat(cidx));
+    end
+    clust_thresh_lower = prctile(max_clust(:, 1), pval_cluster * 100);
+    clust_thresh_upper = prctile(max_clust(:, 2), 100 - pval_cluster * 100);
+    clust2remove = find(sum_t > clust_thresh_lower & sum_t < clust_thresh_upper);
+    for clu = 1 : length(clust2remove)
+        tmat(clusts.PixelIdxList{clust2remove(clu)}) = 0;
+    end
+    contour_interaction = logical(tmat);
+
+    % Plots
+    figure()
+
+    subplot(2, 2, 1)
+    pd = squeeze(mean(ersp_std_rep, 1));
+    contourf(tf_times, tf_freqs, pd, 50, 'linecolor','none')
+    hold on
+    contour(tf_times, tf_freqs, contour_interaction, 1, 'linecolor', 'k', 'LineWidth', 2)
+    colormap('jet')
+    set(gca, 'clim', [-2, 2], 'YTick', [4, 8, 12, 20, 30])
+    colorbar;
+    title('std-rep')
+
+    subplot(2, 2, 2)
+    pd = squeeze(mean(ersp_std_swi, 1));
+    contourf(tf_times, tf_freqs, pd, 50, 'linecolor','none')
+    hold on
+    contour(tf_times, tf_freqs, contour_switch, 1, 'linecolor', 'k', 'LineWidth', 2)
+    colormap('jet')
+    set(gca, 'clim', [-2, 2], 'YTick', [4, 8, 12, 20, 30])
+    colorbar;
+    title('std-swi')
+
+    subplot(2, 2, 3)
+    pd = squeeze(mean(ersp_bon_rep, 1));
+    contourf(tf_times, tf_freqs, pd, 50, 'linecolor','none')
+    hold on
+    contour(tf_times, tf_freqs, contour_reward, 1, 'linecolor', 'k', 'LineWidth', 2)
+    colormap('jet')
+    set(gca, 'clim', [-2, 2], 'YTick', [4, 8, 12, 20, 30])
+    colorbar;
+    title('bon-rep')
+
+    subplot(2, 2, 4)
+    pd = squeeze(mean(ersp_bon_swi, 1));
+    contourf(tf_times, tf_freqs, pd, 50, 'linecolor','none')
+    hold on
+    contour(tf_times, tf_freqs, contour_reward, 1, 'linecolor', 'k', 'LineWidth', 2)
+    colormap('jet')
+    set(gca, 'clim', [-2, 2], 'YTick', [4, 8, 12, 20, 30])
+    colorbar;
+    title('bon-swi')
+
+end % End part2
