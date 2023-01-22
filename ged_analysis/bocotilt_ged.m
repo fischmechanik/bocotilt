@@ -3,8 +3,8 @@ clear all;
 
 % Path variables
 PATH_EEGLAB      = '/home/plkn/eeglab2022.1/';
-PATH_AUTOCLEANED = '/mnt/data_dump/bocotilt/2_autocleaned/';
-PATH_GED         = '/mnt/data_dump/bocotilt/8_ged77/';
+PATH_AUTOCLEANED = '/home/plkn/bocotilt_fooof/cleaned/';
+PATH_GED         = '/home/plkn/bocotilt_fooof/ged_time_series/';
 
 % Subject list
 subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18',...
@@ -17,7 +17,7 @@ addpath(PATH_EEGLAB);
 eeglab;
 
 % SWITCH: Switch parts of script on/off
-to_execute = {'part1', 'part2'};
+to_execute = {'part1'};
 
 % Part 1: Calculate ged
 if ismember('part1', to_execute)
@@ -64,6 +64,9 @@ if ismember('part1', to_execute)
         eeg_data = eeg_data(:, :, to_keep);
         EEG.trialinfo = EEG.trialinfo(to_keep, :);
         EEG.trials = sum(to_keep);
+
+        % Save FCz
+        fcz_time_series = squeeze(eeg_data(127, :, :));
 
         % Construct filter
         nyquist = EEG.srate / 2;
@@ -218,7 +221,7 @@ if ismember('part1', to_execute)
         times = EEG.times;
 
         % Save selected component activation as mat file
-        save([PATH_GED, 'component_time_series/', subject, '_ged_component.mat'], 'cmp_time_series', 'trialinfo', 'times')
+        save([PATH_GED, 'component_time_series/', subject, '_ged_component.mat'], 'cmp_time_series', 'fcz_time_series', 'trialinfo', 'times')
 
     end % End subject iteration
 
