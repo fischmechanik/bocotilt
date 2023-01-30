@@ -15,10 +15,8 @@ import statsmodels.stats.anova
 import seaborn as sns
 
 # Define paths
-path_in = "/home/plkn/bocotilt_fooof/ged_time_series/component_time_series/"
-path_clean_data = "/home/plkn/bocotilt_fooof/cleaned/"
-path_out = ""
-path_fooof = "/home/plkn/fooof-main/"
+path_clean_data = "/mnt/data_dump/bocotilt/2_autocleaned/"
+path_fooof = "/home/plkn/fooof_main/"
 
 # Append fooof to sys path
 sys.path.append(path_fooof)
@@ -26,11 +24,11 @@ sys.path.append(path_fooof)
 # Import fooof
 import fooof
 
-# Set sampling rate
-srate = 200
-
 # List of datasets
-datasets = glob.glob(f"{path_in}/*.mat")
+datasets = glob.glob(f"{path_clean_data}/*_erp.set")
+
+# List of ids to exclude
+ids_to_exclude = []
 
 # Init pandas stuff
 cols = [
@@ -48,7 +46,7 @@ cols = [
     "theta_cf_ct",
     "theta_cf_pt",
 ]
-df = pd.DataFrame(columns=cols, index=range((len(datasets) - 2) * 4))
+df = pd.DataFrame(columns=cols, index=range((len(datasets) - len(ids_to_exclude)) * 4))
 df_idx_counter = -1
 fm_counter = -1
 
@@ -63,21 +61,22 @@ for counter_subject, dataset in enumerate(datasets):
 
     # Get subject id as string
     id_string = dataset.split("VP")[1][0:2]
-    
-    if id_string in ["14", "15"]:
+
+    # Exclude subjects
+    if id_string in ids_to_exclude:
         continue
 
-    # Load ged time series (trials x times)
-    eeg_data = np.squeeze(scipy.io.loadmat(dataset)["cmp_time_series"]).T
-
-    # Load times
-    eeg_times = np.squeeze(scipy.io.loadmat(dataset)["times"])
-
-    # Load trialinfo
-    df_trialinfo = pd.DataFrame(scipy.io.loadmat(dataset)["trialinfo"])
-
-    # Load FCz data
-    fcz_data = np.squeeze(scipy.io.loadmat(dataset)["fcz_time_series"]).T
+    # Load data
+    eeg = scipy.io.loadmat(dataset)
+               
+    # Unpack           
+    eeg_data, eeg_times, srate = eeg["data"], np.squeeze(eeg["times"]), np.squeeze(eeg["srate"])                       
+    
+    # Get FCz data (trials x times)
+    fcz_data = eeg_data[126, :, :].T
+    
+    # Create trialinfo as dataframe
+    df_trialinfo = pd.DataFrame(eeg["trialinfo"])
 
     # Set trialinfo column labels
     df_trialinfo.columns = [
@@ -149,18 +148,16 @@ for counter_subject, dataset in enumerate(datasets):
             tw_compact = ["bl", "ct", "pt"][tw_idx]
 
             # Select trials
-            tmp_ged = eeg_data[cidx, :].copy()
             tmp_fcz = fcz_data[cidx, :].copy()
 
             # Select timewin
-            tmp_ged = tmp_ged[:, idx_timewins[tw_idx]].copy()
-            tmp_fcz = tmp_fcz[:, idx_timewins[tw_idx]].copy()
+            tmp_fcz = tmp_fcz[:, np.squeeze(idx_timewins[tw_idx])].copy()
 
             # Compute spectrumfcz
             spectrum_fcz, fooof_freqs = mne.time_frequency.psd_array_welch(
                 tmp_fcz,
                 srate,
-                fmin=1,
+                fmin=0.01,
                 fmax=40,
                 n_fft=1024,
                 n_per_seg=120,
@@ -178,16 +175,16 @@ for counter_subject, dataset in enumerate(datasets):
                 peak_threshold=0.1, peak_width_limits=[1, 4], max_n_peaks=100
             )
 
-            # Save fooof
-            fooof_models.append(fm)
-
             # Set the frequency range to fit the fooof model
-            fooof_freq_range = [2, 30]
+            fooof_freq_range = [1, 30]
 
             # Report: fit the model
             fm_counter += 1
-            fm.fit(fooof_freqs, spectrum_fcz, fooof_freq_range)
+            fm.fit(np.squeeze(fooof_freqs), spectrum_fcz, fooof_freq_range)
             df.loc[df_idx_counter][f"fm_index_{tw_compact}"] = fm_counter
+            
+            # Save fooof
+            fooof_models.append(fm)
 
             # Collect theta peaks
             theta_peaks = []
@@ -214,7 +211,7 @@ df["er_theta_cf_ct"] = df["theta_cf_ct"] - df["theta_cf_bl"]
 df["er_theta_cf_pt"] = df["theta_cf_pt"] - df["theta_cf_bl"]
 
 # Select measure
-measure = "er_theta_cf_ct"
+measure = "theta_cf_pt"
 
 # Plot RTs (still including incorrect?)
 g = sns.catplot(
@@ -238,9 +235,7 @@ anova_out = statsmodels.stats.anova.AnovaRM(
 print(anova_out)
 
 
-
-
 # Inspect
-fooof_idx = 177
+fooof_idx = 5
 fooof_models[fooof_idx].plot(plot_peaks="shade", peak_kwargs={"color": "green"})
 fooof_models[fooof_idx].peak_params_
