@@ -172,11 +172,11 @@ for counter_subject, dataset in enumerate(datasets):
 
             # Initialize FOOOF
             fm = fooof.FOOOF(
-                peak_threshold=0.1, peak_width_limits=[1, 4], max_n_peaks=100
+                peak_threshold=0.1, peak_width_limits=[0.5, 4], max_n_peaks=10
             )
 
             # Set the frequency range to fit the fooof model
-            fooof_freq_range = [1, 30]
+            fooof_freq_range = [0.1, 30]
 
             # Report: fit the model
             fm_counter += 1
@@ -185,12 +185,9 @@ for counter_subject, dataset in enumerate(datasets):
             
             # Save fooof
             fooof_models.append(fm)
-
-            # Collect theta peaks
-            theta_peaks = []
-            for peak_params in fm.peak_params_:
-                if (peak_params[0] >= 4) & (peak_params[0] <= 9):
-                    theta_peaks.append(peak_params)
+            
+            # Get theta peak
+            theta_peaks = fooof.analysis.get_band_peak_fm(fm, [4, 8])
 
             # Save observed number of peaks
             df.loc[df_idx_counter][f"n_theta_peaks_{tw_compact}"] = len(theta_peaks)
@@ -198,20 +195,15 @@ for counter_subject, dataset in enumerate(datasets):
             # If more than 0 theta peaks
             if len(theta_peaks) > 0:
 
-                # Get index of max amplitude theta peak
-                maxidx = np.argmax(np.array(theta_peaks)[:, 1])
-
                 # Save peak frequency
-                df.loc[df_idx_counter][f"theta_cf_{tw_compact}"] = theta_peaks[maxidx][
-                    0
-                ]
-
+                df.loc[df_idx_counter][f"theta_cf_{tw_compact}"] = theta_peaks[0]
+                
 # Baseline some measures
 df["er_theta_cf_ct"] = df["theta_cf_ct"] - df["theta_cf_bl"]
 df["er_theta_cf_pt"] = df["theta_cf_pt"] - df["theta_cf_bl"]
 
 # Select measure
-measure = "theta_cf_pt"
+measure = "theta_cf_ct"
 
 # Plot RTs (still including incorrect?)
 g = sns.catplot(
@@ -225,6 +217,7 @@ g = sns.catplot(
     data=df,
 )
 g.despine(left=True)
+
 
 anova_out = statsmodels.stats.anova.AnovaRM(
     data=df,

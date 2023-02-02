@@ -2,13 +2,15 @@ clear all;
 
 % PATH VARS
 PATH_EEGLAB        = '/home/plkn/eeglab2022.1/';
-PATH_LOGFILES      = '/mnt/data2/bocotilt/0_logfiles/';
-PATH_RAW           = '/mnt/data2/bocotilt/0_raw/';
-PATH_ICSET         = '/mnt/data2/bocotilt/1_icset/';
-PATH_AUTOCLEANED   = '/mnt/data2/bocotilt/2_autocleaned/';
+PATH_LOGFILES      = '/mnt/data_dump/bocotilt/0_logfiles/';
+PATH_RAW           = '/mnt/data_dump/bocotilt/0_eeg_raw/';
+PATH_ICSET         = '/mnt/data_dump/bocotilt/1_icset/';
+PATH_AUTOCLEANED   = '/mnt/data_dump/bocotilt/2_autocleaned/';
 
 % Subjects
-subject_list = {'VP29', 'VP30', 'VP31'};
+subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18',...
+                'VP19', 'VP20', 'VP21', 'VP22', 'VP23', 'VP08', 'VP24', 'VP26', 'VP27', 'VP28',...
+                'VP29', 'VP30', 'VP31', 'VP32', 'VP33', 'VP34'};
 
 % Init eeglab
 addpath(PATH_EEGLAB);
@@ -154,10 +156,12 @@ for s = 1 : length(subject_list)
     EEG = pop_rmdat(EEG, {'boundary'}, [0, 1], 1);
 
     % Resample data
-    ERP = pop_resample(EEG, 250);
+    ERP = pop_resample(EEG, 500);
     EEG = pop_resample(EEG, 200);
 
     % Reject continuous data
+    [ERP, selected_regions] = pop_rejcont(ERP, 'freqlimit', [20, 40], 'taper', 'hamming');
+    ERP.rejcont_regions = selected_regions;
     [EEG, selected_regions] = pop_rejcont(EEG, 'freqlimit', [20, 40], 'taper', 'hamming');
     EEG.rejcont_regions = selected_regions;
 
