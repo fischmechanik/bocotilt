@@ -102,7 +102,7 @@ def do_some_classification(X, y):
             acc.append(sklearn.metrics.accuracy_score(y_test, clf.predict(X_test)))
             
             # Get feature importances
-            #fmp.append(clf.feature_importances_)
+            fmp.append(clf.feature_importances_)
 
     # Average
     average_acc = np.stack(acc).mean(axis=0)
