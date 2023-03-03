@@ -12,7 +12,6 @@ import sklearn.ensemble
 import mne
 import imblearn
 import scipy.io
-import matplotlib.pyplot as plt
 
 # Set environment variable so solve issue with parallel crash
 # https://stackoverflow.com/questions/40115043/no-space-left-on-device-error-while-fitting-sklearn-model/49154587#49154587
@@ -20,10 +19,14 @@ os.environ["JOBLIB_TEMP_FOLDER"] = "/tmp"
 
 # Define paths
 path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
-path_out = "/mnt/data_dump/bocotilt/3_rf_decoding_task_properties_by_reward/"
+path_out = "/mnt/data_dump/bocotilt/3_decoding_data/"
 
-# Function performing random forest classification
-def do_some_classification(X, y):
+# Function that calls the classifications
+def decode_timeslice(X_all, trialinfo, decoding_task, tf_times, tf_freqs, id_string):
+
+    # Select X and y data
+    X = X_all[decoding_task["trial_idx"], :]
+    y = trialinfo[decoding_task["trial_idx"], decoding_task["y_col"]]
 
     # Get dims
     n_trials, n_features = X.shape
@@ -32,7 +35,7 @@ def do_some_classification(X, y):
     undersampler = imblearn.under_sampling.RandomUnderSampler(
         sampling_strategy="not minority"
     )
-    
+
     # Init classifier
     clf = sklearn.ensemble.RandomForestClassifier(
         n_estimators=100,
@@ -41,66 +44,68 @@ def do_some_classification(X, y):
         min_samples_leaf=1,
         random_state=42,
     )
-    
+
     # Set number of iterations
-    n_iterations = 20
-    
+    n_iterations = 10
+
     # List for classifier performance and feature importances
     acc = []
     fmp = []
-    
+
     # Loop iterations
-    for iteration_idx in range(n_iterations):
-        
+    for _ in range(n_iterations):
+
         # Undersample data
         X_undersampled, y_undersampled = undersampler.fit_resample(X, y)
-        
+
         # Shuffle data after undersampling
-        X_undersampled, y_undersampled = sklearn.utils.shuffle(X_undersampled, y_undersampled)
-        
+        X_undersampled, y_undersampled = sklearn.utils.shuffle(
+            X_undersampled, y_undersampled
+        )
+
         # Get data for both classes
         X0 = X_undersampled[y_undersampled == 0, :]
         X1 = X_undersampled[y_undersampled == 1, :]
-        
+
         # Set binsize
         binsize = 10
-        
+
         # Determine number of bins
         n_bins = int(np.floor(X0.shape[0] / binsize))
-        
+
         # Arrays for bins
         X_binned_0 = np.zeros((n_bins, n_features))
         X_binned_1 = np.zeros((n_bins, n_features))
-        
+
         # Binning. Create ERPs
         for row_idx, X_idx in enumerate(np.arange(0, X0.shape[0], 10)[:-1]):
             X_binned_0[row_idx, :] = X0[X_idx : X_idx + 10, :].mean(axis=0)
             X_binned_1[row_idx, :] = X1[X_idx : X_idx + 10, :].mean(axis=0)
-            
+
         # Concatenate bins
         X_binned = np.concatenate((X_binned_0, X_binned_1), axis=0)
         y_binned = np.concatenate((np.zeros((n_bins,)), np.ones((n_bins,))), axis=0)
-        
+
         # Shuffle data after bin creation
         X_binned, y_binned = sklearn.utils.shuffle(X_binned, y_binned)
-        
+
         # Iterate bins
         for bin_idx in range(n_bins):
-            
+
             # Test data
             X_test = X_binned[bin_idx, :].reshape(1, -1)
             y_test = y_binned[bin_idx].reshape(1, -1)
-            
+
             # Train data
             X_train = np.delete(X_binned, bin_idx, 0)
             y_train = np.delete(y_binned, bin_idx, 0)
-            
+
             # Fit model
             clf.fit(X_train, y_train)
-    
+
             # Get accuracy
             acc.append(sklearn.metrics.accuracy_score(y_test, clf.predict(X_test)))
-            
+
             # Get feature importances
             fmp.append(clf.feature_importances_)
 
@@ -108,220 +113,14 @@ def do_some_classification(X, y):
     average_acc = np.stack(acc).mean(axis=0)
     average_fmp = np.stack(fmp).mean(axis=0)
 
+    # This is important!
     return average_acc, average_fmp
 
 
-# Function that calls the classifications
-def decode_timeslice(X_all, trialinfo, prog):
-    
-    # Talk about making progress
-    print(f"decoding dataset {prog[0]}/{prog[1]} - timeslice {prog[2]}/{prog[3]}")
-
-    # Trialinfo cols:
-    # 00: id
-    # 01: block_nr
-    # 02: trial_nr
-    # 03: bonustrial
-    # 04: tilt_task
-    # 05: cue_ax
-    # 06: target_red_left
-    # 07: distractor_red_left
-    # 08: response_interference
-    # 09: task_switch
-    # 10: prev_switch
-    # 11: prev_accuracy
-    # 12: correct_response
-    # 13: response_side
-    # 14: rt
-    # 15: rt_thresh_color
-    # 16: rt_thresh_tilt
-    # 17: accuracy
-    # 18: position_color
-    # 19: position_tilt
-    # 20: position_target
-    # 21: position_distractor
-    # 22: sequence_position
-
-    # Define classifications to perform
-    clfs = []
-
-    # Bonus decoding
-    clfs.append(
-        {
-            "label": "bonus vs standard trials in tilt",
-            "trial_idx": trialinfo[:, 0] != 1000,
-            "y_col": 3,
-        }
-    )
-    
-    # Task decoding
-    clfs.append(
-        {
-            "label": "task in standard trials",
-            "trial_idx": trialinfo[:, 3] == 0,
-            "y_col": 4,
-        }
-    )
-    clfs.append(
-        {
-            "label": "task in bonus trials",
-            "trial_idx": trialinfo[:, 3] == 1,
-            "y_col": 4,
-        }
-    )
-
-    # Cue decoding
-    clfs.append(
-        {
-            "label": "task cue in standard trials in color",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
-            "y_col": 5,
-        }
-    )
-    clfs.append(
-        {
-            "label": "task cue in standard trials in tilt",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
-            "y_col": 5,
-        }
-    )
-    clfs.append(
-        {
-            "label": "task cue in bonus trials in color",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
-            "y_col": 5,
-        }
-    )
-    clfs.append(
-        {
-            "label": "task cue in bonus trials in tilt",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
-            "y_col": 5,
-        }
-    )
-
-    # Response decoding
-    clfs.append(
-        {
-            "label": "Response in standard trials in color",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
-            "y_col": 13,
-        }
-    )
-    clfs.append(
-        {
-            "label": "Response in standard trials in tilt",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
-            "y_col": 13,
-        }
-    )
-    clfs.append(
-        {
-            "label": "Response in bonus trials in color",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
-            "y_col": 13,
-        }
-    )
-    clfs.append(
-        {
-            "label": "Response in bonus trials in tilt",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
-            "y_col": 13,
-        }
-    )
-
-    # Target decoding
-    clfs.append(
-        {
-            "label": "Target in standard trials in color",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
-            "y_col": 20,
-        }
-    )
-    clfs.append(
-        {
-            "label": "Target in standard trials in tilt",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
-            "y_col": 20,
-        }
-    )
-    clfs.append(
-        {
-            "label": "Target in bonus trials in color",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
-            "y_col": 20,
-        }
-    )
-    clfs.append(
-        {
-            "label": "Target in bonus trials in tilt",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
-            "y_col": 20,
-        }
-    )
-
-    # Distractor decoding
-    clfs.append(
-        {
-            "label": "Distractor in standard trials in color",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
-            "y_col": 21,
-        }
-    )
-    clfs.append(
-        {
-            "label": "Distractor in standard trials in tilt",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
-            "y_col": 21,
-        }
-    )
-    clfs.append(
-        {
-            "label": "Distractor in bonus trials in color",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
-            "y_col": 21,
-        }
-    )
-    clfs.append(
-        {
-            "label": "Distractor in bonus trials in tilt",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
-            "y_col": 21,
-        }
-    )
- 
-    # Decode labels
-    decode_labels = []
-
-    # Result matrices
-    acc = np.zeros((len(clfs)))
-    fmp = np.zeros((len(clfs), X_all.shape[1]))
-
-    # Perform classifications
-    for model_nr, clf in enumerate(clfs):
-
-        # Append classification label
-        decode_labels.append(clf["label"])
-
-        # Select features and labels
-        X = X_all[clf["trial_idx"], :]
-        y = trialinfo[clf["trial_idx"], clf["y_col"]]
-
-        # Train model
-        (
-            acc[model_nr],
-            fmp[model_nr, :],
-        ) = do_some_classification(X, y)
-
-    return {
-        "decode_labels": decode_labels,
-        "acc": acc,
-        "fmp": fmp,
-    }
-
+# Get list of dataset
+datasets = glob.glob(f"{path_in}/*cleaned.set")
 
 # Iterate preprocessed datasets
-datasets = glob.glob(f"{path_in}/*cleaned.set")
 for dataset_idx, dataset in enumerate(datasets):
 
     # Get subject id as string
@@ -330,7 +129,7 @@ for dataset_idx, dataset in enumerate(datasets):
     # Talk
     print(f"Decoding dataset {dataset_idx + 1} / {len(datasets)}.")
 
-    # Set fs
+    # Set sampling rate
     srate = 200
 
     # Read channel labels as list
@@ -338,11 +137,15 @@ for dataset_idx, dataset in enumerate(datasets):
         "channel_labels"
     ][0].split(" ")[1:]
 
+    # Rename channels to match standard montage info of MNE
+    for x in range(len(channel_label_list)):
+        if channel_label_list[x] == "O9":
+            channel_label_list[x] = "OI1"
+        if channel_label_list[x] == "O10":
+            channel_label_list[x] = "OI2"
+
     # Load epoch data
     eeg_data = scipy.io.loadmat(dataset)["data"].transpose((2, 0, 1))
-
-    # Load epoch times
-    eeg_times = scipy.io.loadmat(dataset)["times"][0]
 
     # Create info struct
     eeg_info = mne.create_info(channel_label_list, srate)
@@ -359,9 +162,7 @@ for dataset_idx, dataset in enumerate(datasets):
     eeg_epochs.set_channel_types(mapping)
 
     # Set montage
-    montage = mne.channels.make_standard_montage("standard_1005").rename_channels(
-        {"OI1": "O9", "OI2": "O10"}
-    )
+    montage = mne.channels.make_standard_montage("standard_1005")
     eeg_epochs.set_montage(montage)
 
     # Load trialinfo
@@ -379,11 +180,11 @@ for dataset_idx, dataset in enumerate(datasets):
         average=False,
         return_itc=False,
         n_jobs=-2,
-        decim=4,
+        decim=2,
     )
 
-    # Apply baseline procedure
-    # tf_epochs.apply_baseline(mode="logratio", baseline=(-0.100, 0))
+    # Save info object for plotting topos
+    info_object = tf_epochs.info
 
     # Prune in time
     to_keep_idx = (tf_epochs.times >= -0.6) & (tf_epochs.times <= 1.6)
@@ -404,12 +205,16 @@ for dataset_idx, dataset in enumerate(datasets):
     trialinfo[:, 21] = np.floor((trialinfo[:, 21] - 1) / 4)
 
     # Exclude trials: Practice-block trials and first-of-sequence trials and no-response trials
-    idx_to_keep = (trialinfo[:, 1] >= 5) & (trialinfo[:, 22] > 1) & ((trialinfo[:, 13] > -1) & (trialinfo[:, 13] < 2))
+    idx_to_keep = (
+        (trialinfo[:, 1] >= 5)
+        & (trialinfo[:, 22] > 1)
+        & ((trialinfo[:, 13] > -1) & (trialinfo[:, 13] < 2))
+    )
     trialinfo = trialinfo[idx_to_keep, :]
     tf_data = tf_data[idx_to_keep, :, :, :]
 
     # get dims
-    n_trials, n_channels, n_freqs, n_times = tf_data.shape
+    n_trials, n_channels, n_freqs, _ = tf_data.shape
 
     # Trialinfo cols:
     # 00: id
@@ -436,14 +241,164 @@ for dataset_idx, dataset in enumerate(datasets):
     # 21: position_distractor
     # 22: sequence_position
 
+    # A list for stuff to classify
+    decoding_tasks = []
+
+    # Bonus decoding
+    decoding_tasks.append(
+        {
+            "label": "bonus_vs_standard",
+            "trial_idx": trialinfo[:, 0] != 1000,
+            "y_col": 3,
+        }
+    )
+
+    # Task decoding
+    decoding_tasks.append(
+        {
+            "label": "task_in_standard",
+            "trial_idx": trialinfo[:, 3] == 0,
+            "y_col": 4,
+        }
+    )
+    decoding_tasks.append(
+        {
+            "label": "task_in_bonus",
+            "trial_idx": trialinfo[:, 3] == 1,
+            "y_col": 4,
+        }
+    )
+
+    # Cue decoding
+    decoding_tasks.append(
+        {
+            "label": "cue_in_standard_in_color",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
+            "y_col": 5,
+        }
+    )
+    decoding_tasks.append(
+        {
+            "label": "cue_in_standard_in_tilt",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
+            "y_col": 5,
+        }
+    )
+    decoding_tasks.append(
+        {
+            "label": "cue_in_bonus_in_color",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
+            "y_col": 5,
+        }
+    )
+    decoding_tasks.append(
+        {
+            "label": "cue_in_bonus_in_tilt",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
+            "y_col": 5,
+        }
+    )
+
+    # Response decoding
+    decoding_tasks.append(
+        {
+            "label": "response_in_standard_in_color",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
+            "y_col": 13,
+        }
+    )
+    decoding_tasks.append(
+        {
+            "label": "response_in_standard_in_tilt",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
+            "y_col": 13,
+        }
+    )
+    decoding_tasks.append(
+        {
+            "label": "response_in_bonus_in_color",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
+            "y_col": 13,
+        }
+    )
+    decoding_tasks.append(
+        {
+            "label": "response_in_bonus_in_tilt",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
+            "y_col": 13,
+        }
+    )
+
+    # Target decoding
+    decoding_tasks.append(
+        {
+            "label": "target_in_standard_in_color",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
+            "y_col": 20,
+        }
+    )
+    decoding_tasks.append(
+        {
+            "label": "target_in_standard_in_tilt",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
+            "y_col": 20,
+        }
+    )
+    decoding_tasks.append(
+        {
+            "label": "target_in_bonus_in_color",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
+            "y_col": 20,
+        }
+    )
+    decoding_tasks.append(
+        {
+            "label": "target_in_bonus_in_tilt",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
+            "y_col": 20,
+        }
+    )
+
+    # Distractor decoding
+    decoding_tasks.append(
+        {
+            "label": "distractor_in_standard_in_color",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
+            "y_col": 21,
+        }
+    )
+    decoding_tasks.append(
+        {
+            "label": "distractor_in_standard_in_tilt",
+            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
+            "y_col": 21,
+        }
+    )
+    decoding_tasks.append(
+        {
+            "label": "distractor_in_bonus_in_color",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
+            "y_col": 21,
+        }
+    )
+    decoding_tasks.append(
+        {
+            "label": "distractor_in_bonus_in_tilt",
+            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
+            "y_col": 21,
+        }
+    )
+
     # Re-arrange data
     X_list = []
-    temporal_smoothing = 2
-    tf_times = tf_times[:-(temporal_smoothing-1)]
+    temporal_smoothing = 4
+    tf_times = tf_times[: -(temporal_smoothing - 1)]
     for time_idx, timeval in enumerate(tf_times):
 
         # Data as trials x channels x frequencies. Apply a temporal smoothing
-        timepoint_data = tf_data[:, :, :, time_idx : time_idx + temporal_smoothing].mean(axis=3)
+        timepoint_data = tf_data[
+            :, :, :, time_idx : time_idx + temporal_smoothing
+        ].mean(axis=3)
 
         # Trials in rows
         timepoint_data_2d = timepoint_data.reshape((n_trials, n_channels * n_freqs))
@@ -454,43 +409,38 @@ for dataset_idx, dataset in enumerate(datasets):
     # Clean up
     del tf_data
 
-    # Fit random forest
-    out = joblib.Parallel(n_jobs=-2)(
-        joblib.delayed(decode_timeslice)(X, trialinfo, (dataset_idx, len(datasets), X_idx, len(X_list))) for X_idx, X in enumerate(X_list)
-    )
+    # Iterate classification-tasks
+    for decoding_task in decoding_tasks:
 
-    # Re-arrange data into arrays
-    acc = np.stack([x["acc"] for x in out])
-    fmp = np.stack([x["fmp"] for x in out])
+        # Fit random forest
+        out = joblib.Parallel(n_jobs=-2)(
+            joblib.delayed(decode_timeslice)(
+                X, trialinfo, decoding_task, tf_times, tf_freqs, id_string
+            )
+            for X in X_list
+        )
 
-    plt.plot(tf_times, acc)
-    
-    # Get number of classifications performed
-    n_clf = acc.shape[1]
+        # Stack accuracies
+        acc = np.stack([x[0] for x in out])
 
-    # Reshape feature space data
-    fmp = fmp.reshape((n_times, n_clf, n_channels, n_freqs))
+        # Stack feature importances (time x channel x frequencies)
+        fmp = np.stack([x[1].reshape((n_channels, n_freqs)) for x in out])
 
-    # Get decode labels
-    decode_labels = out[0]["decode_labels"]
+        # Compile output
+        output = {
+            "id": id_string,
+            "decode_label": decoding_task["label"],
+            "times": tf_times,
+            "freqs": tf_freqs,
+            "acc": acc,
+            "fmp": fmp,
+            "info_object": info_object,
+        }
 
-    # Re-arrange decoding-results as classification-specific lists
-    acc = [acc[:, i] for i in range(n_clf)]
-    fmp = [fmp[:, i, :, :] for i in range(n_clf)]
+        # Specify out file name
+        out_file = os.path.join(
+            path_out, f"{decoding_task['label']}_{id_string}.joblib"
+        )
 
-    # Compile output
-    output = {
-        "decode_labels": decode_labels,
-        "tf_times": tf_times,
-        "tf_freqs": tf_freqs,
-        "acc": acc,
-        "fmp": fmp,
-    }
-
-    # Specify out file name
-    out_file = os.path.join(path_out, f"{id_string}_decoding_data.joblib")
-
-    # Save
-    joblib.dump(output, out_file)
-
-
+        # Save
+        joblib.dump(output, out_file)
