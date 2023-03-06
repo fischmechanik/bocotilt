@@ -19,7 +19,7 @@ os.environ["JOBLIB_TEMP_FOLDER"] = "/tmp"
 
 # Define paths
 path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
-path_out = "/mnt/data_dump/bocotilt/3_decoding_data_10_estims/"
+path_out = "/mnt/data_dump/bocotilt/3_decoding_data/"
 
 # Function that calls the classifications
 def decode_timeslice(X_all, trialinfo, decoding_task, tf_times, tf_freqs, id_string):
