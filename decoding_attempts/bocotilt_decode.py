@@ -19,7 +19,7 @@ os.environ["JOBLIB_TEMP_FOLDER"] = "/tmp"
 
 # Define paths
 path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
-path_out = "/mnt/data_dump/bocotilt/3_decoding_data/"
+path_out = "/mnt/data_dump/bocotilt/3_decoding_data_10_estims/"
 
 # Function that calls the classifications
 def decode_timeslice(X_all, trialinfo, decoding_task, tf_times, tf_freqs, id_string):
@@ -99,6 +99,15 @@ def decode_timeslice(X_all, trialinfo, decoding_task, tf_times, tf_freqs, id_str
             # Train data
             X_train = np.delete(X_binned, bin_idx, 0)
             y_train = np.delete(y_binned, bin_idx, 0)
+
+            # Pick random occurence of majority class
+            to_exclude = np.random.choice(
+                np.argwhere(y_train == [1, 0][y_test[0][0].astype("int")]).reshape(-1)
+            )
+
+            # Exclude from training data
+            X_train = np.delete(X_train, to_exclude, 0)
+            y_train = np.delete(y_train, to_exclude, 0)
 
             # Fit model
             clf.fit(X_train, y_train)
@@ -391,7 +400,7 @@ for dataset_idx, dataset in enumerate(datasets):
 
     # Re-arrange data
     X_list = []
-    temporal_smoothing = 4
+    temporal_smoothing = 5
     tf_times = tf_times[: -(temporal_smoothing - 1)]
     for time_idx, timeval in enumerate(tf_times):
 
