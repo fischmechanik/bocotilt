@@ -22,7 +22,7 @@ import random
 import matplotlib.pyplot as plt
 
 # Path vars
-path_in = "/mnt/data_dump/bocotilt/3_decoding_data_10_estims/"
+path_in = "/mnt/data_dump/bocotilt/3_decoding_data_svm/"
 
 # Define labels to load
 labels = [
@@ -46,7 +46,6 @@ labels = [
     "distractor_in_bonus_in_tilt",
     "distractor_in_standard_in_tilt",
 ]
-labels = ["cue_in_standard_in_color"]
 
 # Result collectors
 accs = {}
