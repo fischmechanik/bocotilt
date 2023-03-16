@@ -22,7 +22,7 @@ path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
 path_out = "/mnt/data_dump/bocotilt/3_decoding_data/"
 
 # Function that calls the classifications
-def decode_timeslice(X_all, trialinfo, decoding_task, tf_times, tf_freqs, id_string):
+def decode_timeslice(X_all, trialinfo, decoding_task):
 
     # Select X and y data
     X = X_all[decoding_task["trial_idx"], :]
@@ -71,43 +71,44 @@ def decode_timeslice(X_all, trialinfo, decoding_task, tf_times, tf_freqs, id_str
         binsize = 10
 
         # Determine number of bins
-        n_bins = int(np.floor(X0.shape[0] / binsize))
+        n_bins_per_class = int(np.floor(X0.shape[0] / binsize))
 
         # Arrays for bins
-        X_binned_0 = np.zeros((n_bins, n_features))
-        X_binned_1 = np.zeros((n_bins, n_features))
+        X_binned_0 = np.zeros((n_bins_per_class, n_features))
+        X_binned_1 = np.zeros((n_bins_per_class, n_features))
 
         # Binning. Create ERPs
-        for row_idx, X_idx in enumerate(np.arange(0, X0.shape[0], 10)[:-1]):
-            X_binned_0[row_idx, :] = X0[X_idx : X_idx + 10, :].mean(axis=0)
-            X_binned_1[row_idx, :] = X1[X_idx : X_idx + 10, :].mean(axis=0)
-
-        # Concatenate bins
-        X_binned = np.concatenate((X_binned_0, X_binned_1), axis=0)
-        y_binned = np.concatenate((np.zeros((n_bins,)), np.ones((n_bins,))), axis=0)
-
-        # Shuffle data after bin creation
-        X_binned, y_binned = sklearn.utils.shuffle(X_binned, y_binned)
+        for row_idx, X_idx in enumerate(np.arange(0, X0.shape[0], binsize)[:-1]):
+            X_binned_0[row_idx, :] = X0[X_idx : X_idx + binsize, :].mean(axis=0)
+            X_binned_1[row_idx, :] = X1[X_idx : X_idx + binsize, :].mean(axis=0)
 
         # Iterate bins
-        for bin_idx in range(n_bins):
+        for bin_idx in range(n_bins_per_class):
 
-            # Test data
-            X_test = X_binned[bin_idx, :].reshape(1, -1)
-            y_test = y_binned[bin_idx].reshape(1, -1)
+            # Get test data, one occurence of each class.
+            X_test = np.stack((X_binned_0[bin_idx, :], X_binned_1[bin_idx, :]))
 
-            # Train data
-            X_train = np.delete(X_binned, bin_idx, 0)
-            y_train = np.delete(y_binned, bin_idx, 0)
+            # Get test labels
+            y_test = np.array((0, 1))
 
-            # Pick random occurence of majority class
-            to_exclude = np.random.choice(
-                np.argwhere(y_train == [1, 0][y_test[0][0].astype("int")]).reshape(-1)
+            # Shuffle test data
+            X_test, y_test = sklearn.utils.shuffle(X_test, y_test)
+
+            # Exclude test bins from binned data
+            X_train_0 = np.delete(X_binned_0, bin_idx, 0)
+            X_train_1 = np.delete(X_binned_1, bin_idx, 0)
+
+            # Concatenate bins to training dataset
+            X_train = np.concatenate((X_train_0, X_train_1), axis=0)
+
+            # Create label vector
+            y_train = np.concatenate(
+                (np.zeros((n_bins_per_class - 1,)), np.ones((n_bins_per_class - 1,))),
+                axis=0,
             )
 
-            # Exclude from training data
-            X_train = np.delete(X_train, to_exclude, 0)
-            y_train = np.delete(y_train, to_exclude, 0)
+            # Shuffle training data after bin creation
+            X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
 
             # Fit model
             clf.fit(X_train, y_train)
@@ -189,7 +190,7 @@ for dataset_idx, dataset in enumerate(datasets):
         average=False,
         return_itc=False,
         n_jobs=-2,
-        decim=2,
+        decim=4,
     )
 
     # Save info object for plotting topos
@@ -278,129 +279,129 @@ for dataset_idx, dataset in enumerate(datasets):
         }
     )
 
-    # Cue decoding
-    decoding_tasks.append(
-        {
-            "label": "cue_in_standard_in_color",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
-            "y_col": 5,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "cue_in_standard_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
-            "y_col": 5,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "cue_in_bonus_in_color",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
-            "y_col": 5,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "cue_in_bonus_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
-            "y_col": 5,
-        }
-    )
+    # # Cue decoding
+    # decoding_tasks.append(
+    #     {
+    #         "label": "cue_in_standard_in_color",
+    #         "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
+    #         "y_col": 5,
+    #     }
+    # )
+    # decoding_tasks.append(
+    #     {
+    #         "label": "cue_in_standard_in_tilt",
+    #         "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
+    #         "y_col": 5,
+    #     }
+    # )
+    # decoding_tasks.append(
+    #     {
+    #         "label": "cue_in_bonus_in_color",
+    #         "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
+    #         "y_col": 5,
+    #     }
+    # )
+    # decoding_tasks.append(
+    #     {
+    #         "label": "cue_in_bonus_in_tilt",
+    #         "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
+    #         "y_col": 5,
+    #     }
+    # )
 
-    # Response decoding
-    decoding_tasks.append(
-        {
-            "label": "response_in_standard_in_color",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
-            "y_col": 13,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "response_in_standard_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
-            "y_col": 13,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "response_in_bonus_in_color",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
-            "y_col": 13,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "response_in_bonus_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
-            "y_col": 13,
-        }
-    )
+    # # Response decoding
+    # decoding_tasks.append(
+    #     {
+    #         "label": "response_in_standard_in_color",
+    #         "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
+    #         "y_col": 13,
+    #     }
+    # )
+    # decoding_tasks.append(
+    #     {
+    #         "label": "response_in_standard_in_tilt",
+    #         "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
+    #         "y_col": 13,
+    #     }
+    # )
+    # decoding_tasks.append(
+    #     {
+    #         "label": "response_in_bonus_in_color",
+    #         "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
+    #         "y_col": 13,
+    #     }
+    # )
+    # decoding_tasks.append(
+    #     {
+    #         "label": "response_in_bonus_in_tilt",
+    #         "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
+    #         "y_col": 13,
+    #     }
+    # )
 
-    # Target decoding
-    decoding_tasks.append(
-        {
-            "label": "target_in_standard_in_color",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
-            "y_col": 20,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "target_in_standard_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
-            "y_col": 20,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "target_in_bonus_in_color",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
-            "y_col": 20,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "target_in_bonus_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
-            "y_col": 20,
-        }
-    )
+    # # Target decoding
+    # decoding_tasks.append(
+    #     {
+    #         "label": "target_in_standard_in_color",
+    #         "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
+    #         "y_col": 20,
+    #     }
+    # )
+    # decoding_tasks.append(
+    #     {
+    #         "label": "target_in_standard_in_tilt",
+    #         "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
+    #         "y_col": 20,
+    #     }
+    # )
+    # decoding_tasks.append(
+    #     {
+    #         "label": "target_in_bonus_in_color",
+    #         "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
+    #         "y_col": 20,
+    #     }
+    # )
+    # decoding_tasks.append(
+    #     {
+    #         "label": "target_in_bonus_in_tilt",
+    #         "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
+    #         "y_col": 20,
+    #     }
+    # )
 
-    # Distractor decoding
-    decoding_tasks.append(
-        {
-            "label": "distractor_in_standard_in_color",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
-            "y_col": 21,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "distractor_in_standard_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
-            "y_col": 21,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "distractor_in_bonus_in_color",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
-            "y_col": 21,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "distractor_in_bonus_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
-            "y_col": 21,
-        }
-    )
+    # # Distractor decoding
+    # decoding_tasks.append(
+    #     {
+    #         "label": "distractor_in_standard_in_color",
+    #         "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
+    #         "y_col": 21,
+    #     }
+    # )
+    # decoding_tasks.append(
+    #     {
+    #         "label": "distractor_in_standard_in_tilt",
+    #         "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
+    #         "y_col": 21,
+    #     }
+    # )
+    # decoding_tasks.append(
+    #     {
+    #         "label": "distractor_in_bonus_in_color",
+    #         "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
+    #         "y_col": 21,
+    #     }
+    # )
+    # decoding_tasks.append(
+    #     {
+    #         "label": "distractor_in_bonus_in_tilt",
+    #         "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
+    #         "y_col": 21,
+    #     }
+    # )
 
     # Re-arrange data
     X_list = []
-    temporal_smoothing = 4
+    temporal_smoothing = 2
     tf_times = tf_times[: -(temporal_smoothing - 1)]
     for time_idx, timeval in enumerate(tf_times):
 
@@ -432,9 +433,7 @@ for dataset_idx, dataset in enumerate(datasets):
 
         # Fit random forest
         out = joblib.Parallel(n_jobs=-2)(
-            joblib.delayed(decode_timeslice)(
-                X, trialinfo, decoding_task, tf_times, tf_freqs, id_string
-            )
+            joblib.delayed(decode_timeslice)(X, trialinfo, decoding_task)
             for X in X_list
         )
 

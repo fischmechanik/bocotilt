@@ -29,22 +29,6 @@ labels = [
     "bonus_vs_standard",
     "task_in_bonus",
     "task_in_standard",
-    "cue_in_bonus_in_color",
-    "cue_in_standard_in_color",
-    "cue_in_bonus_in_tilt",
-    "cue_in_standard_in_tilt",
-    "response_in_bonus_in_color",
-    "response_in_standard_in_color",
-    "response_in_bonus_in_tilt",
-    "response_in_standard_in_tilt",
-    "target_in_bonus_in_color",
-    "target_in_standard_in_color",
-    "target_in_bonus_in_tilt",
-    "target_in_standard_in_tilt",
-    "distractor_in_bonus_in_color",
-    "distractor_in_standard_in_color",
-    "distractor_in_bonus_in_tilt",
-    "distractor_in_standard_in_tilt",
 ]
 
 # Result collectors
@@ -104,44 +88,4 @@ plt.plot(times, accs["task_in_bonus"], label="bon")
 plt.plot(times, accs["task_in_standard"], label="std")
 plt.legend()
 plt.title("task decoding")
-fig.show()
-
-# Plot cue decoding
-fig = plt.figure()
-plt.plot(times, accs["cue_in_bonus_in_color"], label="bon color")
-plt.plot(times, accs["cue_in_standard_in_color"], label="std color")
-plt.plot(times, accs["cue_in_bonus_in_tilt"], label="bon tilt")
-plt.plot(times, accs["cue_in_standard_in_tilt"], label="std tilt")
-plt.legend()
-plt.title("cue decoding")
-fig.show()
-
-# Plot response decoding
-fig = plt.figure()
-plt.plot(times, accs["response_in_bonus_in_color"], label="bon color")
-plt.plot(times, accs["response_in_standard_in_color"], label="std color")
-plt.plot(times, accs["response_in_bonus_in_tilt"], label="bon tilt")
-plt.plot(times, accs["response_in_standard_in_tilt"], label="std tilt")
-plt.legend()
-plt.title("response decoding")
-fig.show()
-
-# Plot target decoding
-fig = plt.figure()
-plt.plot(times, accs["target_in_bonus_in_color"], label="bon color")
-plt.plot(times, accs["target_in_standard_in_color"], label="std color")
-plt.plot(times, accs["target_in_bonus_in_tilt"], label="bon tilt")
-plt.plot(times, accs["target_in_standard_in_tilt"], label="std tilt")
-plt.legend()
-plt.title("target decoding")
-fig.show()
-
-# Plot distractor decoding
-fig = plt.figure()
-plt.plot(times, accs["distractor_in_bonus_in_color"], label="bon color")
-plt.plot(times, accs["distractor_in_standard_in_color"], label="std color")
-plt.plot(times, accs["distractor_in_bonus_in_tilt"], label="bon tilt")
-plt.plot(times, accs["distractor_in_standard_in_tilt"], label="std tilt")
-plt.legend()
-plt.title("distractor decoding")
 fig.show()

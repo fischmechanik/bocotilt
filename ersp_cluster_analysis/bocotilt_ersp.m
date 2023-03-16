@@ -16,7 +16,7 @@ subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 
                 'VP29', 'VP30', 'VP31', 'VP32', 'VP33', 'VP34'};
 
 % SWITCH: Switch parts of script on/off
-to_execute = {'part4'};
+to_execute = {'part2'};
 
 % Part 1: Calculate ersp
 if ismember('part1', to_execute)
