@@ -8,8 +8,7 @@ import joblib
 import numpy as np
 import sklearn.model_selection
 import sklearn.metrics
-#import sklearn.ensemble
-import sklearn.svm
+import sklearn.ensemble
 import mne
 import imblearn
 import scipy.io
@@ -20,10 +19,10 @@ os.environ["JOBLIB_TEMP_FOLDER"] = "/tmp"
 
 # Define paths
 path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
-path_out = "/mnt/data_dump/bocotilt/3_decoding_data_svm/"
+path_out = "/mnt/data_dump/bocotilt/3_decoding_data/features_reduced/"
 
 # Function that calls the classifications
-def decode_timeslice(X_all, trialinfo, decoding_task, tf_times, tf_freqs, id_string):
+def decode_timeslice(X_all, trialinfo, decoding_task):
 
     # Select X and y data
     X = X_all[decoding_task["trial_idx"], :]
@@ -38,7 +37,13 @@ def decode_timeslice(X_all, trialinfo, decoding_task, tf_times, tf_freqs, id_str
     )
 
     # Init classifier
-    clf = sklearn.svm.SVC(kernel="linear")
+    clf = sklearn.ensemble.RandomForestClassifier(
+        n_estimators=100,
+        max_depth=None,
+        min_samples_split=2,
+        min_samples_leaf=1,
+        random_state=42,
+    )
 
     # Set number of iterations
     n_iterations = 10
@@ -66,43 +71,44 @@ def decode_timeslice(X_all, trialinfo, decoding_task, tf_times, tf_freqs, id_str
         binsize = 10
 
         # Determine number of bins
-        n_bins = int(np.floor(X0.shape[0] / binsize))
+        n_bins_per_class = int(np.floor(X0.shape[0] / binsize))
 
         # Arrays for bins
-        X_binned_0 = np.zeros((n_bins, n_features))
-        X_binned_1 = np.zeros((n_bins, n_features))
+        X_binned_0 = np.zeros((n_bins_per_class, n_features))
+        X_binned_1 = np.zeros((n_bins_per_class, n_features))
 
         # Binning. Create ERPs
-        for row_idx, X_idx in enumerate(np.arange(0, X0.shape[0], 10)[:-1]):
-            X_binned_0[row_idx, :] = X0[X_idx : X_idx + 10, :].mean(axis=0)
-            X_binned_1[row_idx, :] = X1[X_idx : X_idx + 10, :].mean(axis=0)
-
-        # Concatenate bins
-        X_binned = np.concatenate((X_binned_0, X_binned_1), axis=0)
-        y_binned = np.concatenate((np.zeros((n_bins,)), np.ones((n_bins,))), axis=0)
-
-        # Shuffle data after bin creation
-        X_binned, y_binned = sklearn.utils.shuffle(X_binned, y_binned)
+        for row_idx, X_idx in enumerate(np.arange(0, X0.shape[0], binsize)[:-1]):
+            X_binned_0[row_idx, :] = X0[X_idx : X_idx + binsize, :].mean(axis=0)
+            X_binned_1[row_idx, :] = X1[X_idx : X_idx + binsize, :].mean(axis=0)
 
         # Iterate bins
-        for bin_idx in range(n_bins):
+        for bin_idx in range(n_bins_per_class):
 
-            # Test data
-            X_test = X_binned[bin_idx, :].reshape(1, -1)
-            y_test = y_binned[bin_idx].reshape(1, -1)
+            # Get test data, one occurence of each class.
+            X_test = np.stack((X_binned_0[bin_idx, :], X_binned_1[bin_idx, :]))
 
-            # Train data
-            X_train = np.delete(X_binned, bin_idx, 0)
-            y_train = np.delete(y_binned, bin_idx, 0)
+            # Get test labels
+            y_test = np.array((0, 1))
 
-            # Pick random occurence of majority class
-            to_exclude = np.random.choice(
-                np.argwhere(y_train == [1, 0][y_test[0][0].astype("int")]).reshape(-1)
+            # Shuffle test data
+            X_test, y_test = sklearn.utils.shuffle(X_test, y_test)
+
+            # Exclude test bins from binned data
+            X_train_0 = np.delete(X_binned_0, bin_idx, 0)
+            X_train_1 = np.delete(X_binned_1, bin_idx, 0)
+
+            # Concatenate bins to training dataset
+            X_train = np.concatenate((X_train_0, X_train_1), axis=0)
+
+            # Create label vector
+            y_train = np.concatenate(
+                (np.zeros((n_bins_per_class - 1,)), np.ones((n_bins_per_class - 1,))),
+                axis=0,
             )
 
-            # Exclude from training data
-            X_train = np.delete(X_train, to_exclude, 0)
-            y_train = np.delete(y_train, to_exclude, 0)
+            # Shuffle training data after bin creation
+            X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
 
             # Fit model
             clf.fit(X_train, y_train)
@@ -111,7 +117,7 @@ def decode_timeslice(X_all, trialinfo, decoding_task, tf_times, tf_freqs, id_str
             acc.append(sklearn.metrics.accuracy_score(y_test, clf.predict(X_test)))
 
             # Get feature importances
-            fmp.append(clf.coef_)
+            fmp.append(clf.feature_importances_)
 
     # Average
     average_acc = np.stack(acc).mean(axis=0)
@@ -172,19 +178,44 @@ for dataset_idx, dataset in enumerate(datasets):
     # Load trialinfo
     trialinfo = scipy.io.loadmat(dataset)["trialinfo"]
 
+    # Get indices of channels to pick
+    to_pick_labels = [
+        "Fz",
+        "F3",
+        "F4",
+        "Cz",
+        "C3",
+        "C4",
+        "C5",
+        "C6",
+        "Pz",
+        "P3",
+        "P4",
+        "P5",
+        "P6",
+        "OI1",
+        "OI2",
+        "POz",
+        "PO3",
+        "PO4",
+        "PO7",
+        "PO8",
+    ]
+    to_pick_idx = [eeg_epochs.ch_names.index(x) for x in to_pick_labels]
+
     # Perform single trial time-frequency analysis
-    n_freqs = 20
+    n_freqs = 50
     tf_freqs = np.linspace(2, 30, n_freqs)
     tf_cycles = np.linspace(3, 12, n_freqs)
     tf_epochs = mne.time_frequency.tfr_morlet(
         eeg_epochs,
         tf_freqs,
         n_cycles=tf_cycles,
-        picks=np.arange(0, 127),
+        picks=to_pick_idx,
         average=False,
         return_itc=False,
         n_jobs=-2,
-        decim=4,
+        decim=2,
     )
 
     # Save info object for plotting topos
@@ -194,6 +225,18 @@ for dataset_idx, dataset in enumerate(datasets):
     to_keep_idx = (tf_epochs.times >= -0.6) & (tf_epochs.times <= 1.6)
     tf_times = tf_epochs.times[to_keep_idx]
     tf_data = tf_epochs.data[:, :, :, to_keep_idx]
+
+    # Average for frequency bands
+    tf_delta = tf_data[:, :, (tf_freqs >= 2) & (tf_freqs <= 3), :].mean(axis=2)
+    tf_theta = tf_data[:, :, (tf_freqs >= 4) & (tf_freqs <= 7), :].mean(axis=2)
+    tf_alpha = tf_data[:, :, (tf_freqs >= 8) & (tf_freqs <= 12), :].mean(axis=2)
+    tf_beta = tf_data[:, :, (tf_freqs >= 13) & (tf_freqs <= 31), :].mean(axis=2)
+
+    # Stacked data dims are freqband, trials, channnels, time
+    tf_data = np.stack((tf_delta, tf_theta, tf_alpha, tf_beta))
+
+    # Permute to trial x channel x freqs x time
+    tf_data = np.transpose(tf_data, (1, 2, 0, 3))
 
     # Clean up
     del eeg_epochs, tf_epochs, eeg_data
@@ -270,6 +313,22 @@ for dataset_idx, dataset in enumerate(datasets):
             "label": "task_in_bonus",
             "trial_idx": trialinfo[:, 3] == 1,
             "y_col": 4,
+        }
+    )
+
+    # Switch decoding
+    decoding_tasks.append(
+        {
+            "label": "switch_in_standard",
+            "trial_idx": trialinfo[:, 3] == 0,
+            "y_col": 9,
+        }
+    )
+    decoding_tasks.append(
+        {
+            "label": "switch_in_bonus",
+            "trial_idx": trialinfo[:, 3] == 1,
+            "y_col": 9,
         }
     )
 
@@ -416,11 +475,18 @@ for dataset_idx, dataset in enumerate(datasets):
     # Iterate classification-tasks
     for decoding_task in decoding_tasks:
 
+        # Specify out file name for decoding task
+        out_file = os.path.join(
+            path_out, f"{decoding_task['label']}_{id_string}.joblib"
+        )
+
+        # Check if done already. If so -> skip
+        if os.path.isfile(out_file):
+            continue
+
         # Fit random forest
         out = joblib.Parallel(n_jobs=-2)(
-            joblib.delayed(decode_timeslice)(
-                X, trialinfo, decoding_task, tf_times, tf_freqs, id_string
-            )
+            joblib.delayed(decode_timeslice)(X, trialinfo, decoding_task)
             for X in X_list
         )
 
@@ -440,11 +506,6 @@ for dataset_idx, dataset in enumerate(datasets):
             "fmp": fmp,
             "info_object": info_object,
         }
-
-        # Specify out file name
-        out_file = os.path.join(
-            path_out, f"{decoding_task['label']}_{id_string}.joblib"
-        )
 
         # Save
         joblib.dump(output, out_file)

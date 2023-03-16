@@ -177,20 +177,24 @@ for dataset_idx, dataset in enumerate(datasets):
 
     # Load trialinfo
     trialinfo = scipy.io.loadmat(dataset)["trialinfo"]
+    
+    # Get indices of channels to pick
+    to_pick_labels = ["Fz", "F3", "F4", "Cz", "C3", "C4",  "C5", "C6", "Pz", "P3", "P4", "P5", "P6", "OI1", "OI2", "POz", "PO3", "PO4", "PO7", "PO8"]
+    to_pick_idx = [eeg_epochs.ch_names.index(x) for x in to_pick_labels]
 
     # Perform single trial time-frequency analysis
-    n_freqs = 20
+    n_freqs = 50
     tf_freqs = np.linspace(2, 30, n_freqs)
     tf_cycles = np.linspace(3, 12, n_freqs)
     tf_epochs = mne.time_frequency.tfr_morlet(
         eeg_epochs,
         tf_freqs,
         n_cycles=tf_cycles,
-        picks=np.arange(0, 127),
+        picks=to_pick_idx,
         average=False,
         return_itc=False,
         n_jobs=-2,
-        decim=4,
+        decim=2,
     )
 
     # Save info object for plotting topos
@@ -200,6 +204,18 @@ for dataset_idx, dataset in enumerate(datasets):
     to_keep_idx = (tf_epochs.times >= -0.6) & (tf_epochs.times <= 1.6)
     tf_times = tf_epochs.times[to_keep_idx]
     tf_data = tf_epochs.data[:, :, :, to_keep_idx]
+
+    # Average for frequency bands
+    tf_delta = tf_data[:, :, (tf_freqs >= 2) & (tf_freqs <= 3), :].mean(axis=2)
+    tf_theta = tf_data[:, :, (tf_freqs >= 4) & (tf_freqs <= 7), :].mean(axis=2)
+    tf_alpha = tf_data[:, :, (tf_freqs >= 8) & (tf_freqs <= 12), :].mean(axis=2)
+    tf_beta = tf_data[:, :, (tf_freqs >= 13) & (tf_freqs <= 31), :].mean(axis=2)
+    
+    # Stacked data dims are freqband, trials, channnels, time
+    tf_data = np.stack((tf_delta, tf_theta, tf_alpha, tf_beta))
+    
+    # Permute to trial x channel x freqs x time
+    tf_data = np.transpose(tf_data, (1, 2, 0, 3))
 
     # Clean up
     del eeg_epochs, tf_epochs, eeg_data

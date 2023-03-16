@@ -22,7 +22,7 @@ import random
 import matplotlib.pyplot as plt
 
 # Path vars
-path_in = "/mnt/data_dump/bocotilt/3_decoding_data_svm/"
+path_in = "/mnt/data_dump/bocotilt/3_decoding_data/"
 
 # Define labels to load
 labels = [
@@ -89,3 +89,26 @@ plt.plot(times, accs["task_in_standard"], label="std")
 plt.legend()
 plt.title("task decoding")
 fig.show()
+
+# Plot fmp
+chan_nums = np.arange(1, 128)
+time_idx = (times >= 0.3) & (times <= 0.4)
+pd = fmps["task_in_standard"][time_idx, :, :].mean(axis=0).T
+fig = plt.figure()
+plt.contourf(chan_nums, freqs, pd, cmap="plasma")
+plt.clim((0, 0.004))
+plt.colorbar()
+
+# Plot fmp
+pd = fmps["bonus_vs_standard"][:, :, :].mean(axis=2).T
+fig = plt.figure()
+plt.contourf(times, chan_nums, pd, cmap="plasma")
+plt.clim((0, 0.002))
+plt.colorbar()
+
+# Plot fmp
+pd = fmps["task_in_standard"][:, :, :].mean(axis=1).T
+fig = plt.figure()
+plt.contourf(times, freqs, pd, cmap="plasma")
+plt.clim((0, 0.004))
+plt.colorbar()
