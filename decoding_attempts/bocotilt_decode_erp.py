@@ -6,9 +6,12 @@ import glob
 import os
 import joblib
 import numpy as np
+import sklearn.preprocessing
 import sklearn.model_selection
 import sklearn.metrics
-import sklearn.ensemble
+import sklearn.decomposition
+import sklearn.linear_model
+import sklearn.svm
 import mne
 import imblearn
 import scipy.io
@@ -19,7 +22,7 @@ os.environ["JOBLIB_TEMP_FOLDER"] = "/tmp"
 
 # Define paths
 path_in = "/mnt/data_dump/bocotilt/2_autocleaned/"
-path_out = "/mnt/data_dump/bocotilt/3_decoding_data/features_reduced_smoother/"
+path_out = "/mnt/data_dump/bocotilt/3_decoding_data/erp/"
 
 # Function that calls the classifications
 def decode_timeslice(X_all, trialinfo, decoding_task):
@@ -28,29 +31,19 @@ def decode_timeslice(X_all, trialinfo, decoding_task):
     X = X_all[decoding_task["trial_idx"], :]
     y = trialinfo[decoding_task["trial_idx"], decoding_task["y_col"]]
 
-    # Get dims
-    n_trials, n_features = X.shape
-
     # Init undersampler
     undersampler = imblearn.under_sampling.RandomUnderSampler(
         sampling_strategy="not minority"
     )
 
     # Init classifier
-    clf = sklearn.ensemble.RandomForestClassifier(
-        n_estimators=100,
-        max_depth=None,
-        min_samples_split=2,
-        min_samples_leaf=1,
-        random_state=42,
-    )
+    clf = sklearn.svm.SVC(kernel="linear")
 
     # Set number of iterations
     n_iterations = 10
 
     # List for classifier performance and feature importances
     acc = []
-    fmp = []
 
     # Loop iterations
     for _ in range(n_iterations):
@@ -63,6 +56,14 @@ def decode_timeslice(X_all, trialinfo, decoding_task):
             X_undersampled, y_undersampled
         )
 
+        # Scale data
+        scaler = sklearn.preprocessing.StandardScaler()
+        X_undersampled = scaler.fit_transform(X_undersampled)
+
+        # Compress data
+        pca = sklearn.decomposition.PCA(n_components=0.9, svd_solver="full")
+        X_undersampled = pca.fit_transform(X_undersampled)
+
         # Get data for both classes
         X0 = X_undersampled[y_undersampled == 0, :]
         X1 = X_undersampled[y_undersampled == 1, :]
@@ -72,6 +73,9 @@ def decode_timeslice(X_all, trialinfo, decoding_task):
 
         # Determine number of bins
         n_bins_per_class = int(np.floor(X0.shape[0] / binsize))
+
+        # Get number of features
+        _, n_features = X0.shape
 
         # Arrays for bins
         X_binned_0 = np.zeros((n_bins_per_class, n_features))
@@ -116,15 +120,11 @@ def decode_timeslice(X_all, trialinfo, decoding_task):
             # Get accuracy
             acc.append(sklearn.metrics.accuracy_score(y_test, clf.predict(X_test)))
 
-            # Get feature importances
-            fmp.append(clf.feature_importances_)
-
     # Average
     average_acc = np.stack(acc).mean(axis=0)
-    average_fmp = np.stack(fmp).mean(axis=0)
 
     # This is important!
-    return average_acc, average_fmp
+    return average_acc
 
 
 # Get list of dataset
@@ -161,7 +161,7 @@ for dataset_idx, dataset in enumerate(datasets):
     eeg_info = mne.create_info(channel_label_list, srate)
 
     # Create epoch struct
-    eeg_epochs = mne.EpochsArray(eeg_data, eeg_info, tmin=-1)
+    eeg_epochs = mne.EpochsArray(eeg_data, eeg_info, tmin=-1).decimate(2)
 
     # Create channel type mapping
     mapping = {}
@@ -178,68 +178,41 @@ for dataset_idx, dataset in enumerate(datasets):
     # Load trialinfo
     trialinfo = scipy.io.loadmat(dataset)["trialinfo"]
 
-    # Get indices of channels to pick
-    to_pick_labels = [
-        "Fz",
-        "F3",
-        "F4",
-        "Cz",
-        "C3",
-        "C4",
-        "C5",
-        "C6",
-        "Pz",
-        "P3",
-        "P4",
-        "P5",
-        "P6",
-        "OI1",
-        "OI2",
-        "POz",
-        "PO3",
-        "PO4",
-        "PO7",
-        "PO8",
-    ]
-    to_pick_idx = [eeg_epochs.ch_names.index(x) for x in to_pick_labels]
-
-    # Perform single trial time-frequency analysis
-    n_freqs = 50
-    tf_freqs = np.linspace(2, 30, n_freqs)
-    tf_cycles = np.linspace(3, 12, n_freqs)
-    tf_epochs = mne.time_frequency.tfr_morlet(
-        eeg_epochs,
-        tf_freqs,
-        n_cycles=tf_cycles,
-        picks=to_pick_idx,
-        average=False,
-        return_itc=False,
-        n_jobs=-2,
-        decim=4,
-    )
+    # # Get indices of channels to pick
+    # to_pick_labels = [
+    #     "Fz",
+    #     "F3",
+    #     "F4",
+    #     "Cz",
+    #     "C3",
+    #     "C4",
+    #     "C5",
+    #     "C6",
+    #     "Pz",
+    #     "P3",
+    #     "P4",
+    #     "P5",
+    #     "P6",
+    #     "OI1",
+    #     "OI2",
+    #     "POz",
+    #     "PO3",
+    #     "PO4",
+    #     "PO7",
+    #     "PO8",
+    # ]
+    # to_pick_idx = [eeg_epochs.ch_names.index(x) for x in to_pick_labels]
 
     # Save info object for plotting topos
-    info_object = tf_epochs.info
+    info_object = eeg_epochs.info
 
     # Prune in time
-    to_keep_idx = (tf_epochs.times >= -0.6) & (tf_epochs.times <= 1.6)
-    tf_times = tf_epochs.times[to_keep_idx]
-    tf_data = tf_epochs.data[:, :, :, to_keep_idx]
-
-    # Average for frequency bands
-    tf_delta = tf_data[:, :, (tf_freqs >= 2) & (tf_freqs <= 3), :].mean(axis=2)
-    tf_theta = tf_data[:, :, (tf_freqs >= 4) & (tf_freqs <= 7), :].mean(axis=2)
-    tf_alpha = tf_data[:, :, (tf_freqs >= 8) & (tf_freqs <= 12), :].mean(axis=2)
-    tf_beta = tf_data[:, :, (tf_freqs >= 13) & (tf_freqs <= 31), :].mean(axis=2)
-
-    # Stacked data dims are freqband, trials, channnels, time
-    tf_data = np.stack((tf_delta, tf_theta, tf_alpha, tf_beta))
-
-    # Permute to trial x channel x freqs x time
-    tf_data = np.transpose(tf_data, (1, 2, 0, 3))
+    to_keep_idx = (eeg_epochs.times >= -0.2) & (eeg_epochs.times <= 1.6)
+    tf_times = eeg_epochs.times[to_keep_idx]
+    tf_data = eeg_epochs.get_data()[:, :, to_keep_idx]  # Data is trial x channel x time
 
     # Clean up
-    del eeg_epochs, tf_epochs, eeg_data
+    del eeg_epochs, eeg_data
 
     # Positions of target and distractor are coded  1-8, starting at the top-right position, then counting counter-clockwise
 
@@ -258,10 +231,10 @@ for dataset_idx, dataset in enumerate(datasets):
         & ((trialinfo[:, 13] > -1) & (trialinfo[:, 13] < 2))
     )
     trialinfo = trialinfo[idx_to_keep, :]
-    tf_data = tf_data[idx_to_keep, :, :, :]
+    tf_data = tf_data[idx_to_keep, :, :]
 
     # get dims
-    n_trials, n_channels, n_freqs, _ = tf_data.shape
+    n_trials, n_channels, _ = tf_data.shape
 
     # Trialinfo cols:
     # 00: id
@@ -294,8 +267,16 @@ for dataset_idx, dataset in enumerate(datasets):
     # Bonus decoding
     decoding_tasks.append(
         {
-            "label": "bonus_vs_standard",
-            "trial_idx": trialinfo[:, 0] != 1000,
+            "label": "bonus_vs_standard_in_repeat",
+            "trial_idx": trialinfo[:, 9] == 0,
+            "y_col": 3,
+        }
+    )
+    
+    decoding_tasks.append(
+        {
+            "label": "bonus_vs_standard_in_switch",
+            "trial_idx": trialinfo[:, 9] == 1,
             "y_col": 3,
         }
     )
@@ -303,34 +284,35 @@ for dataset_idx, dataset in enumerate(datasets):
     # Task decoding
     decoding_tasks.append(
         {
-            "label": "task_in_standard",
-            "trial_idx": trialinfo[:, 3] == 0,
+            "label": "task_in_repeat_in_standard",
+            "trial_idx": (trialinfo[:, 9] == 0) & (trialinfo[:, 3] == 0),
             "y_col": 4,
         }
     )
     decoding_tasks.append(
         {
-            "label": "task_in_bonus",
-            "trial_idx": trialinfo[:, 3] == 1,
+            "label": "task_in_repeat_in_bonus",
+            "trial_idx": (trialinfo[:, 9] == 0) & (trialinfo[:, 3] == 1),
             "y_col": 4,
         }
     )
-
-    # Switch decoding
+    
     decoding_tasks.append(
         {
-            "label": "switch_in_standard",
-            "trial_idx": trialinfo[:, 3] == 0,
-            "y_col": 9,
+            "label": "task_in_repeat_in_standard",
+            "trial_idx": (trialinfo[:, 9] == 0) & (trialinfo[:, 3] == 0),
+            "y_col": 4,
         }
     )
     decoding_tasks.append(
         {
-            "label": "switch_in_bonus",
-            "trial_idx": trialinfo[:, 3] == 1,
-            "y_col": 9,
+            "label": "task_in_repeat_in_bonus",
+            "trial_idx": (trialinfo[:, 9] == 0) & (trialinfo[:, 3] == 1),
+            "y_col": 4,
         }
     )
+    
+    
 
     # Cue decoding
     decoding_tasks.append(
@@ -459,12 +441,12 @@ for dataset_idx, dataset in enumerate(datasets):
     for time_idx, timeval in enumerate(tf_times):
 
         # Data as trials x channels x frequencies. Apply a temporal smoothing
-        timepoint_data = tf_data[
-            :, :, :, time_idx : time_idx + temporal_smoothing
-        ].mean(axis=3)
+        timepoint_data = tf_data[:, :, time_idx : time_idx + temporal_smoothing].mean(
+            axis=2
+        )
 
         # Trials in rows
-        timepoint_data_2d = timepoint_data.reshape((n_trials, n_channels * n_freqs))
+        timepoint_data_2d = timepoint_data.reshape((n_trials, n_channels))
 
         # Stack data
         X_list.append(timepoint_data_2d)
@@ -491,19 +473,14 @@ for dataset_idx, dataset in enumerate(datasets):
         )
 
         # Stack accuracies
-        acc = np.stack([x[0] for x in out])
-
-        # Stack feature importances (time x channel x frequencies)
-        fmp = np.stack([x[1].reshape((n_channels, n_freqs)) for x in out])
+        acc = np.stack([x for x in out])
 
         # Compile output
         output = {
             "id": id_string,
             "decode_label": decoding_task["label"],
             "times": tf_times,
-            "freqs": tf_freqs,
             "acc": acc,
-            "fmp": fmp,
             "info_object": info_object,
         }
 
