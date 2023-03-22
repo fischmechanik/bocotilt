@@ -294,8 +294,16 @@ for dataset_idx, dataset in enumerate(datasets):
     # Bonus decoding
     decoding_tasks.append(
         {
-            "label": "bonus_vs_standard",
-            "trial_idx": trialinfo[:, 0] != 1000,
+            "label": "bonus_vs_standard_in_repeat",
+            "trial_idx": trialinfo[:, 9] == 0,
+            "y_col": 3,
+        }
+    )
+
+    decoding_tasks.append(
+        {
+            "label": "bonus_vs_standard_in_switch",
+            "trial_idx": trialinfo[:, 9] == 1,
             "y_col": 3,
         }
     )
@@ -303,152 +311,30 @@ for dataset_idx, dataset in enumerate(datasets):
     # Task decoding
     decoding_tasks.append(
         {
-            "label": "task_in_standard",
-            "trial_idx": trialinfo[:, 3] == 0,
+            "label": "task_in_repeat_in_standard",
+            "trial_idx": (trialinfo[:, 9] == 0) & (trialinfo[:, 3] == 0),
             "y_col": 4,
         }
     )
     decoding_tasks.append(
         {
-            "label": "task_in_bonus",
-            "trial_idx": trialinfo[:, 3] == 1,
+            "label": "task_in_repeat_in_bonus",
+            "trial_idx": (trialinfo[:, 9] == 0) & (trialinfo[:, 3] == 1),
             "y_col": 4,
         }
     )
-
-    # Switch decoding
     decoding_tasks.append(
         {
-            "label": "switch_in_standard",
-            "trial_idx": trialinfo[:, 3] == 0,
-            "y_col": 9,
+            "label": "task_in_switch_in_standard",
+            "trial_idx": (trialinfo[:, 9] == 1) & (trialinfo[:, 3] == 0),
+            "y_col": 4,
         }
     )
     decoding_tasks.append(
         {
-            "label": "switch_in_bonus",
-            "trial_idx": trialinfo[:, 3] == 1,
-            "y_col": 9,
-        }
-    )
-
-    # Cue decoding
-    decoding_tasks.append(
-        {
-            "label": "cue_in_standard_in_color",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
-            "y_col": 5,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "cue_in_standard_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
-            "y_col": 5,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "cue_in_bonus_in_color",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
-            "y_col": 5,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "cue_in_bonus_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
-            "y_col": 5,
-        }
-    )
-
-    # Response decoding
-    decoding_tasks.append(
-        {
-            "label": "response_in_standard_in_color",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
-            "y_col": 13,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "response_in_standard_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
-            "y_col": 13,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "response_in_bonus_in_color",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
-            "y_col": 13,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "response_in_bonus_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
-            "y_col": 13,
-        }
-    )
-
-    # Target decoding
-    decoding_tasks.append(
-        {
-            "label": "target_in_standard_in_color",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
-            "y_col": 20,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "target_in_standard_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
-            "y_col": 20,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "target_in_bonus_in_color",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
-            "y_col": 20,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "target_in_bonus_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
-            "y_col": 20,
-        }
-    )
-
-    # Distractor decoding
-    decoding_tasks.append(
-        {
-            "label": "distractor_in_standard_in_color",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 0),
-            "y_col": 21,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "distractor_in_standard_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 0) & (trialinfo[:, 4] == 1),
-            "y_col": 21,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "distractor_in_bonus_in_color",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 0),
-            "y_col": 21,
-        }
-    )
-    decoding_tasks.append(
-        {
-            "label": "distractor_in_bonus_in_tilt",
-            "trial_idx": (trialinfo[:, 3] == 1) & (trialinfo[:, 4] == 1),
-            "y_col": 21,
+            "label": "task_in_switch_in_bonus",
+            "trial_idx": (trialinfo[:, 9] == 1) & (trialinfo[:, 3] == 1),
+            "y_col": 4,
         }
     )
 

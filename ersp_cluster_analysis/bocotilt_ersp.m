@@ -16,7 +16,7 @@ subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 
                 'VP29', 'VP30', 'VP31', 'VP32', 'VP33', 'VP34'};
 
 % SWITCH: Switch parts of script on/off
-to_execute = {'part2'};
+to_execute = {'part3'};
 
 % Part 1: Calculate ersp
 if ismember('part1', to_execute)
@@ -410,6 +410,10 @@ if ismember('part2', to_execute)
     % Save cluster struct
     save([PATH_OUT 'significant_clusters.mat'], 'clusts');
 
+    % Init eeglab
+    addpath(PATH_EEGLAB);
+    eeglab;
+
     % Plot identified cluster
     clinecol = 'k';
     cmap = 'jet';
@@ -479,27 +483,98 @@ if ismember('part3', to_execute)
     load([PATH_OUT 'adjpetasq_switch.mat']);
     load([PATH_OUT 'adjpetasq_interaction.mat']);
 
-    % =============== Main effect bonus ========================================================
-    ersp_std = squeeze(mean(double((ersp_std_rep + ersp_std_swi) / 2), [1, 2]));
-    ersp_bon = squeeze(mean(double((ersp_bon_rep + ersp_bon_swi) / 2), [1, 2]));
-    apes_bon = squeeze(mean(adjpetasq_bonus, 1));
-    outline_bon = logical(squeeze(mean(clusts(1).idx, 1)) + squeeze(mean(clusts(2).idx, 1)));
 
-    writematrix(ersp_std, [PATH_OUT, 'ersp_std.csv']);
-    writematrix(ersp_bon, [PATH_OUT, 'ersp_bon.csv']);
-    writematrix(apes_bon, [PATH_OUT, 'apes_bon.csv']);
-    writematrix(outline_bon, [PATH_OUT, 'outline_bon.csv']);
-
-    % Plot cluster 1 topo
+    % Cluster 1 stuff ========================================================================================================================================
     idx_time = logical(squeeze(mean(clusts(1).idx, [1, 2])));
     idx_freq = logical(squeeze(mean(clusts(1).idx, [1, 3])));
     idx_chan = logical(squeeze(mean(clusts(1).idx, [2, 3])));
+
+    outline_cluster_1 = logical(squeeze(mean(clusts(1).idx, 1)));
+    apes_cluster_1 = squeeze(mean(adjpetasq_bonus(idx_chan, :, :), 1));
+    ersp_std_cluster_1 = squeeze(mean(double((ersp_std_rep(:, idx_chan, :, :) + ersp_std_swi(:, idx_chan, :, :)) / 2), [1, 2]));
+    ersp_bon_cluster_1 = squeeze(mean(double((ersp_bon_rep(:, idx_chan, :, :) + ersp_bon_swi(:, idx_chan, :, :)) / 2), [1, 2]));
+
+    writematrix(outline_cluster_1, [PATH_OUT, 'outline_cluster_1.csv']);
+    writematrix(apes_cluster_1, [PATH_OUT, 'apes_cluster_1.csv']);
+    writematrix(ersp_std_cluster_1, [PATH_OUT, 'ersp_std_cluster_1.csv']);
+    writematrix(ersp_bon_cluster_1, [PATH_OUT, 'ersp_bon_cluster_1.csv']);
+
     pd = squeeze(mean(adjpetasq_bonus(:, idx_freq, idx_time), [2, 3]));
     figure('Visible', 'off'); clf;
     topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {find(idx_chan), '.', 'k'} );
     colormap('jet')
     set(gca, 'clim', [-0.3, 0.3])
     saveas(gcf, [PATH_OUT, 'topo_cluster_1.png']);
+
+    % Cluster 2 stuff ========================================================================================================================================
+    idx_time = logical(squeeze(mean(clusts(2).idx, [1, 2])));
+    idx_freq = logical(squeeze(mean(clusts(2).idx, [1, 3])));
+    idx_chan = logical(squeeze(mean(clusts(2).idx, [2, 3])));
+
+    outline_cluster_2 = logical(squeeze(mean(clusts(2).idx, 1)));
+    apes_cluster_2 = squeeze(mean(adjpetasq_bonus(idx_chan, :, :), 1));
+    ersp_std_cluster_2 = squeeze(mean(double((ersp_std_rep(:, idx_chan, :, :) + ersp_std_swi(:, idx_chan, :, :)) / 2), [1, 2]));
+    ersp_bon_cluster_2 = squeeze(mean(double((ersp_bon_rep(:, idx_chan, :, :) + ersp_bon_swi(:, idx_chan, :, :)) / 2), [1, 2]));
+
+    writematrix(outline_cluster_2, [PATH_OUT, 'outline_cluster_2.csv']);
+    writematrix(apes_cluster_2, [PATH_OUT, 'apes_cluster_2.csv']);
+    writematrix(ersp_std_cluster_2, [PATH_OUT, 'ersp_std_cluster_2.csv']);
+    writematrix(ersp_bon_cluster_2, [PATH_OUT, 'ersp_bon_cluster_2.csv']);
+
+    pd = squeeze(mean(adjpetasq_bonus(:, idx_freq, idx_time), [2, 3]));
+    figure('Visible', 'off'); clf;
+    topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {find(idx_chan), '.', 'k'} );
+    colormap('jet')
+    set(gca, 'clim', [-0.3, 0.3])
+    saveas(gcf, [PATH_OUT, 'topo_cluster_2.png']);
+
+    % Cluster 3 stuff ========================================================================================================================================
+    idx_time = logical(squeeze(mean(clusts(3).idx, [1, 2])));
+    idx_freq = logical(squeeze(mean(clusts(3).idx, [1, 3])));
+    idx_chan = logical(squeeze(mean(clusts(3).idx, [2, 3])));
+
+    outline_cluster_3 = logical(squeeze(mean(clusts(3).idx, 1)));
+    apes_cluster_3 = squeeze(mean(adjpetasq_switch(idx_chan, :, :), 1));
+    ersp_rep_cluster_3 = squeeze(mean(double((ersp_std_rep(:, idx_chan, :, :) + ersp_bon_rep(:, idx_chan, :, :)) / 2), [1, 2]));
+    ersp_swi_cluster_3 = squeeze(mean(double((ersp_std_swi(:, idx_chan, :, :) + ersp_bon_swi(:, idx_chan, :, :)) / 2), [1, 2]));
+
+    writematrix(outline_cluster_3, [PATH_OUT, 'outline_cluster_3.csv']);
+    writematrix(apes_cluster_3, [PATH_OUT, 'apes_cluster_3.csv']);
+    writematrix(ersp_rep_cluster_3, [PATH_OUT, 'ersp_rep_cluster_3.csv']);
+    writematrix(ersp_swi_cluster_3, [PATH_OUT, 'ersp_swi_cluster_3.csv']);
+
+    pd = squeeze(mean(adjpetasq_switch(:, idx_freq, idx_time), [2, 3]));
+    figure('Visible', 'off'); clf;
+    topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {find(idx_chan), '.', 'k'} );
+    colormap('jet')
+    set(gca, 'clim', [-0.3, 0.3])
+    saveas(gcf, [PATH_OUT, 'topo_cluster_3.png']);
+
+    % Cluster 4 stuff ========================================================================================================================================
+    idx_time = logical(squeeze(mean(clusts(4).idx, [1, 2])));
+    idx_freq = logical(squeeze(mean(clusts(4).idx, [1, 3])));
+    idx_chan = logical(squeeze(mean(clusts(4).idx, [2, 3])));
+
+    outline_cluster_4 = logical(squeeze(mean(clusts(4).idx, 1)));
+    apes_cluster_4 = squeeze(mean(adjpetasq_switch(idx_chan, :, :), 1));
+    ersp_rep_cluster_4 = squeeze(mean(double((ersp_std_rep(:, idx_chan, :, :) + ersp_bon_rep(:, idx_chan, :, :)) / 2), [1, 2]));
+    ersp_swi_cluster_4 = squeeze(mean(double((ersp_std_swi(:, idx_chan, :, :) + ersp_bon_swi(:, idx_chan, :, :)) / 2), [1, 2]));
+
+    writematrix(outline_cluster_4, [PATH_OUT, 'outline_cluster_4.csv']);
+    writematrix(apes_cluster_4, [PATH_OUT, 'apes_cluster_4.csv']);
+    writematrix(ersp_rep_cluster_4, [PATH_OUT, 'ersp_rep_cluster_4.csv']);
+    writematrix(ersp_swi_cluster_4, [PATH_OUT, 'ersp_swi_cluster_4.csv']);
+
+    pd = squeeze(mean(adjpetasq_switch(:, idx_freq, idx_time), [2, 3]));
+    figure('Visible', 'off'); clf;
+    topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {find(idx_chan), '.', 'k'} );
+    colormap('jet')
+    set(gca, 'clim', [-0.3, 0.3])
+    saveas(gcf, [PATH_OUT, 'topo_cluster_4.png']);
+
+
+    aa=bb
+
 
     % Plot cluster 2 topo
     idx_time = logical(squeeze(mean(clusts(2).idx, [1, 2])));
