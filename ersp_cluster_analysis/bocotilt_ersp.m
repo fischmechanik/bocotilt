@@ -489,10 +489,12 @@ if ismember('part3', to_execute)
     idx_freq = logical(squeeze(mean(clusts(1).idx, [1, 3])));
     idx_chan = logical(squeeze(mean(clusts(1).idx, [2, 3])));
 
+    idx_ersp = [97, 98, 101, 102,    17, 33, 34,   127];
+
     outline_cluster_1 = logical(squeeze(mean(clusts(1).idx, 1)));
     apes_cluster_1 = squeeze(mean(adjpetasq_bonus(idx_chan, :, :), 1));
-    ersp_std_cluster_1 = squeeze(mean(double((ersp_std_rep(:, idx_chan, :, :) + ersp_std_swi(:, idx_chan, :, :)) / 2), [1, 2]));
-    ersp_bon_cluster_1 = squeeze(mean(double((ersp_bon_rep(:, idx_chan, :, :) + ersp_bon_swi(:, idx_chan, :, :)) / 2), [1, 2]));
+    ersp_std_cluster_1 = squeeze(mean(double((ersp_std_rep(:, idx_ersp, :, :) + ersp_std_swi(:, idx_ersp, :, :)) / 2), [1, 2]));
+    ersp_bon_cluster_1 = squeeze(mean(double((ersp_bon_rep(:, idx_ersp, :, :) + ersp_bon_swi(:, idx_ersp, :, :)) / 2), [1, 2]));
 
     writematrix(outline_cluster_1, [PATH_OUT, 'outline_cluster_1.csv']);
     writematrix(apes_cluster_1, [PATH_OUT, 'apes_cluster_1.csv']);
@@ -504,7 +506,14 @@ if ismember('part3', to_execute)
     topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {find(idx_chan), '.', 'k'} );
     colormap('jet')
     set(gca, 'clim', [-0.3, 0.3])
-    saveas(gcf, [PATH_OUT, 'topo_cluster_1.png']);
+    saveas(gcf, [PATH_OUT, 'topo_cluster_1_apes.png']);
+
+    pd = squeeze(mean(adjpetasq_bonus(:, idx_freq, idx_time), [2, 3]));
+    figure('Visible', 'off'); clf;
+    topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {find(idx_chan), '.', 'k'} );
+    colormap('jet')
+    set(gca, 'clim', [-0.3, 0.3])
+    saveas(gcf, [PATH_OUT, 'topo_cluster_1_ersp_diff.png']);
 
     % Cluster 2 stuff ========================================================================================================================================
     idx_time = logical(squeeze(mean(clusts(2).idx, [1, 2])));
