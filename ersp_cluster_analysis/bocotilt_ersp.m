@@ -515,9 +515,9 @@ if ismember('part3', to_execute)
     idx_freq = logical(squeeze(mean(clusts(2).idx, [1, 3])));
     idx_chan = logical(squeeze(mean(clusts(2).idx, [2, 3])));
 
-    idx_ersp = [19];
+    idx_ersp = [19, 99, 100];
 
-    outline_cluster_2 = logical(squeeze(mean(clusts(2).idx(idx_ersp, :, :), 1)));
+    outline_cluster_2 = logical(squeeze(mean(clusts(2).idx(:, :, :), 1)));
     outline_cluster_2_ersp = logical(squeeze(mean(clusts(2).idx(idx_ersp, :, :), 1)));
     apes_cluster_2 = squeeze(mean(adjpetasq_bonus(idx_chan, :, :), 1));
     ersp_std_cluster_2 = squeeze(mean(double((ersp_std_rep(:, idx_ersp, :, :) + ersp_std_swi(:, idx_ersp, :, :)) / 2), [1, 2]));
@@ -533,7 +533,7 @@ if ismember('part3', to_execute)
     figure('Visible', 'off'); clf;
     topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {find(idx_chan), '.', 'k'} );
     colormap('jet')
-    set(gca, 'clim', [-0.3, 0.3])
+    set(gca, 'clim', [-0.2, 0.2])
     saveas(gcf, [PATH_OUT, 'topo_cluster_2_apes.png']);
 
     aa = bb
