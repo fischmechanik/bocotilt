@@ -16,7 +16,7 @@ subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 
                 'VP29', 'VP30', 'VP31', 'VP32', 'VP33', 'VP34'};
 
 % SWITCH: Switch parts of script on/off
-to_execute = {'part3'};
+to_execute = {'part4'};
 
 % Part 1: Calculate ersp
 if ismember('part1', to_execute)
@@ -536,19 +536,21 @@ if ismember('part3', to_execute)
     set(gca, 'clim', [-0.2, 0.2])
     saveas(gcf, [PATH_OUT, 'topo_cluster_2_apes.png']);
 
-    aa = bb
-
     % Cluster 3 stuff ========================================================================================================================================
     idx_time = logical(squeeze(mean(clusts(3).idx, [1, 2])));
     idx_freq = logical(squeeze(mean(clusts(3).idx, [1, 3])));
     idx_chan = logical(squeeze(mean(clusts(3).idx, [2, 3])));
 
+    idx_ersp = [17];
+
     outline_cluster_3 = logical(squeeze(mean(clusts(3).idx, 1)));
+    outline_cluster_3_ersp = logical(squeeze(mean(clusts(3).idx(idx_ersp, :, :), 1)));
     apes_cluster_3 = squeeze(mean(adjpetasq_switch(idx_chan, :, :), 1));
-    ersp_rep_cluster_3 = squeeze(mean(double((ersp_std_rep(:, idx_chan, :, :) + ersp_bon_rep(:, idx_chan, :, :)) / 2), [1, 2]));
-    ersp_swi_cluster_3 = squeeze(mean(double((ersp_std_swi(:, idx_chan, :, :) + ersp_bon_swi(:, idx_chan, :, :)) / 2), [1, 2]));
+    ersp_rep_cluster_3 = squeeze(mean(double((ersp_std_rep(:, idx_ersp, :, :) + ersp_bon_rep(:, idx_ersp, :, :)) / 2), [1, 2]));
+    ersp_swi_cluster_3 = squeeze(mean(double((ersp_std_swi(:, idx_ersp, :, :) + ersp_bon_swi(:, idx_ersp, :, :)) / 2), [1, 2]));
 
     writematrix(outline_cluster_3, [PATH_OUT, 'outline_cluster_3.csv']);
+    writematrix(outline_cluster_3_ersp, [PATH_OUT, 'outline_cluster_3_ersp.csv']);
     writematrix(apes_cluster_3, [PATH_OUT, 'apes_cluster_3.csv']);
     writematrix(ersp_rep_cluster_3, [PATH_OUT, 'ersp_rep_cluster_3.csv']);
     writematrix(ersp_swi_cluster_3, [PATH_OUT, 'ersp_swi_cluster_3.csv']);
@@ -557,7 +559,7 @@ if ismember('part3', to_execute)
     figure('Visible', 'off'); clf;
     topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {find(idx_chan), '.', 'k'} );
     colormap('jet')
-    set(gca, 'clim', [-0.3, 0.3])
+    set(gca, 'clim', [-0.2, 0.2])
     saveas(gcf, [PATH_OUT, 'topo_cluster_3.png']);
 
     % Cluster 4 stuff ========================================================================================================================================
@@ -565,12 +567,16 @@ if ismember('part3', to_execute)
     idx_freq = logical(squeeze(mean(clusts(4).idx, [1, 3])));
     idx_chan = logical(squeeze(mean(clusts(4).idx, [2, 3])));
 
+    idx_ersp = [19, 99, 100];
+
     outline_cluster_4 = logical(squeeze(mean(clusts(4).idx, 1)));
+    outline_cluster_4_ersp = logical(squeeze(mean(clusts(4).idx(idx_ersp, :, :), 1)));
     apes_cluster_4 = squeeze(mean(adjpetasq_switch(idx_chan, :, :), 1));
-    ersp_rep_cluster_4 = squeeze(mean(double((ersp_std_rep(:, idx_chan, :, :) + ersp_bon_rep(:, idx_chan, :, :)) / 2), [1, 2]));
-    ersp_swi_cluster_4 = squeeze(mean(double((ersp_std_swi(:, idx_chan, :, :) + ersp_bon_swi(:, idx_chan, :, :)) / 2), [1, 2]));
+    ersp_rep_cluster_4 = squeeze(mean(double((ersp_std_rep(:, idx_ersp, :, :) + ersp_bon_rep(:, idx_ersp, :, :)) / 2), [1, 2]));
+    ersp_swi_cluster_4 = squeeze(mean(double((ersp_std_swi(:, idx_ersp, :, :) + ersp_bon_swi(:, idx_ersp, :, :)) / 2), [1, 2]));
 
     writematrix(outline_cluster_4, [PATH_OUT, 'outline_cluster_4.csv']);
+    writematrix(outline_cluster_4_ersp, [PATH_OUT, 'outline_cluster_4_ersp.csv']);
     writematrix(apes_cluster_4, [PATH_OUT, 'apes_cluster_4.csv']);
     writematrix(ersp_rep_cluster_4, [PATH_OUT, 'ersp_rep_cluster_4.csv']);
     writematrix(ersp_swi_cluster_4, [PATH_OUT, 'ersp_swi_cluster_4.csv']);
@@ -579,135 +585,98 @@ if ismember('part3', to_execute)
     figure('Visible', 'off'); clf;
     topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {find(idx_chan), '.', 'k'} );
     colormap('jet')
-    set(gca, 'clim', [-0.3, 0.3])
+    set(gca, 'clim', [-0.2, 0.2])
     saveas(gcf, [PATH_OUT, 'topo_cluster_4.png']);
-
-
-    aa=bb
-
-
-    % Plot cluster 2 topo
-    idx_time = logical(squeeze(mean(clusts(2).idx, [1, 2])));
-    idx_freq = logical(squeeze(mean(clusts(2).idx, [1, 3])));
-    idx_chan = logical(squeeze(mean(clusts(2).idx, [2, 3])));
-    pd = squeeze(mean(adjpetasq_bonus(:, idx_freq, idx_time), [2, 3]));
-    figure('Visible', 'off'); clf;
-    topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {find(idx_chan), '.', 'k'} );
-    colormap('jet')
-    set(gca, 'clim', [-0.3, 0.3])
-    saveas(gcf, [PATH_OUT, 'topo_cluster_2.png']);
-
-    % =============== Main effect task-switch ========================================================
-    ersp_rep = squeeze(mean(double((ersp_std_rep + ersp_bon_rep) / 2), [1, 2]));
-    ersp_swi = squeeze(mean(double((ersp_std_swi + ersp_bon_swi) / 2), [1, 2]));
-    apes_swi = squeeze(mean(adjpetasq_switch, 1));
-    outline_swi = logical(squeeze(mean(clusts(3).idx, 1)) + squeeze(mean(clusts(4).idx, 1)));
-
-    writematrix(ersp_rep, [PATH_OUT, 'ersp_rep.csv']);
-    writematrix(ersp_swi, [PATH_OUT, 'ersp_swi.csv']);
-    writematrix(apes_swi, [PATH_OUT, 'apes_swi.csv']);
-    writematrix(outline_swi, [PATH_OUT, 'outline_swi.csv']);
-
-    % Plot cluster 3 topo
-    idx_time = logical(squeeze(mean(clusts(3).idx, [1, 2])));
-    idx_freq = logical(squeeze(mean(clusts(3).idx, [1, 3])));
-    idx_chan = logical(squeeze(mean(clusts(3).idx, [2, 3])));
-    pd = squeeze(mean(adjpetasq_switch(:, idx_freq, idx_time), [2, 3]));
-    figure('Visible', 'off'); clf;
-    topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {find(idx_chan), '.', 'k'} );
-    colormap('jet')
-    set(gca, 'clim', [-0.3, 0.3])
-    saveas(gcf, [PATH_OUT, 'topo_cluster_3.png']);
-
-    % Plot cluster 4 topo
-    idx_time = logical(squeeze(mean(clusts(4).idx, [1, 2])));
-    idx_freq = logical(squeeze(mean(clusts(4).idx, [1, 3])));
-    idx_chan = logical(squeeze(mean(clusts(4).idx, [2, 3])));
-    pd = squeeze(mean(adjpetasq_switch(:, idx_freq, idx_time), [2, 3]));
-    figure('Visible', 'off'); clf;
-    topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'off', 'emarker2', {find(idx_chan), '.', 'k'} );
-    colormap('jet')
-    set(gca, 'clim', [-0.3, 0.3])
-    saveas(gcf, [PATH_OUT, 'topo_cluster_4.png']);
-
-    % =============== Interaction ========================================================
-    ersp_diff_std = squeeze(mean(double(ersp_std_rep), [1, 2])) - squeeze(mean(double(ersp_std_swi), [1, 2]));
-    ersp_diff_bon = squeeze(mean(double(ersp_bon_rep), [1, 2])) - squeeze(mean(double(ersp_bon_swi), [1, 2]));
-    apes_interaction = squeeze(mean(adjpetasq_interaction, 1));
-
-    writematrix(ersp_diff_std, [PATH_OUT, 'ersp_diff_std.csv']);
-    writematrix(ersp_diff_bon, [PATH_OUT, 'ersp_diff_bon.csv']);
-    writematrix(apes_interaction, [PATH_OUT, 'apes_interaction.csv']);
 
     % =============== Line plots at FCz and POz ========================================================
 
     % Some indices...
-    idx_frontal = [17, 33, 34, 65, 66, 69, 70, 127];
-    idx_posterior = [19, 37, 38, 63, 71, 72, 99, 100];
+    idx_frontal = [17, 65, 66, 127];
+    idx_posterior = [19, 71, 72, 63];
     idx_delta = tf_freqs < 4;
-    idx_theta = tf_freqs >= 4 & tf_freqs <= 8;
+    idx_theta = tf_freqs >= 4 & tf_freqs <= 7;
     idx_alpha = tf_freqs >= 8 & tf_freqs <= 12;
-    idx_beta = tf_freqs >= 14;
+    idx_beta = tf_freqs >= 14 & tf_freqs <= 30;
 
     % Save time
     writematrix(tf_times, [PATH_OUT, 'tf_times.csv']);
 
     % Get lineplots
-    fcz_delta = zeros(length(tf_times), 4);
-    fcz_delta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_frontal, idx_delta, :), [1, 2, 3]));
-    fcz_delta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_frontal, idx_delta, :), [1, 2, 3]));
-    fcz_delta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_frontal, idx_delta, :), [1, 2, 3]));
-    fcz_delta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_frontal, idx_delta, :), [1, 2, 3]));
-    writematrix(fcz_delta, [PATH_OUT, 'lineplots_fcz_delta.csv']);
+    frontal_delta = zeros(length(tf_times), 4);
+    frontal_delta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_frontal, idx_delta, :), [1, 2, 3]));
+    frontal_delta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_frontal, idx_delta, :), [1, 2, 3]));
+    frontal_delta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_frontal, idx_delta, :), [1, 2, 3]));
+    frontal_delta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_frontal, idx_delta, :), [1, 2, 3]));
+    writematrix(frontal_delta, [PATH_OUT, 'lineplots_frontal_delta.csv']);
 
-    fcz_theta = zeros(length(tf_times), 4);
-    fcz_theta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_frontal, idx_theta, :), [1, 2, 3]));
-    fcz_theta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_frontal, idx_theta, :), [1, 2, 3]));
-    fcz_theta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_frontal, idx_theta, :), [1, 2, 3]));
-    fcz_theta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_frontal, idx_theta, :), [1, 2, 3]));
-    writematrix(fcz_theta, [PATH_OUT, 'lineplots_fcz_theta.csv']);
+    frontal_theta = zeros(length(tf_times), 4);
+    frontal_theta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_frontal, idx_theta, :), [1, 2, 3]));
+    frontal_theta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_frontal, idx_theta, :), [1, 2, 3]));
+    frontal_theta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_frontal, idx_theta, :), [1, 2, 3]));
+    frontal_theta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_frontal, idx_theta, :), [1, 2, 3]));
+    writematrix(frontal_theta, [PATH_OUT, 'lineplots_frontal_theta.csv']);
 
-    fcz_alpha = zeros(length(tf_times), 4);
-    fcz_alpha(:, 1) = squeeze(mean(ersp_std_rep(:, idx_frontal, idx_alpha, :), [1, 2, 3]));
-    fcz_alpha(:, 2) = squeeze(mean(ersp_std_swi(:, idx_frontal, idx_alpha, :), [1, 2, 3]));
-    fcz_alpha(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_frontal, idx_alpha, :), [1, 2, 3]));
-    fcz_alpha(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_frontal, idx_alpha, :), [1, 2, 3]));
-    writematrix(fcz_alpha, [PATH_OUT, 'lineplots_fcz_alpha.csv']);
+    frontal_alpha = zeros(length(tf_times), 4);
+    frontal_alpha(:, 1) = squeeze(mean(ersp_std_rep(:, idx_frontal, idx_alpha, :), [1, 2, 3]));
+    frontal_alpha(:, 2) = squeeze(mean(ersp_std_swi(:, idx_frontal, idx_alpha, :), [1, 2, 3]));
+    frontal_alpha(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_frontal, idx_alpha, :), [1, 2, 3]));
+    frontal_alpha(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_frontal, idx_alpha, :), [1, 2, 3]));
+    writematrix(frontal_alpha, [PATH_OUT, 'lineplots_frontal_alpha.csv']);
 
-    fcz_beta = zeros(length(tf_times), 4);
-    fcz_beta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_frontal, idx_beta, :), [1, 2, 3]));
-    fcz_beta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_frontal, idx_beta, :), [1, 2, 3]));
-    fcz_beta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_frontal, idx_beta, :), [1, 2, 3]));
-    fcz_beta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_frontal, idx_beta, :), [1, 2, 3]));
-    writematrix(fcz_beta, [PATH_OUT, 'lineplots_fcz_beta.csv']);
+    frontal_beta = zeros(length(tf_times), 4);
+    frontal_beta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_frontal, idx_beta, :), [1, 2, 3]));
+    frontal_beta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_frontal, idx_beta, :), [1, 2, 3]));
+    frontal_beta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_frontal, idx_beta, :), [1, 2, 3]));
+    frontal_beta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_frontal, idx_beta, :), [1, 2, 3]));
+    writematrix(frontal_beta, [PATH_OUT, 'lineplots_frontal_beta.csv']);
 
-    poz_delta = zeros(length(tf_times), 4);
-    poz_delta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_posterior, idx_delta, :), [1, 2, 3]));
-    poz_delta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_posterior, idx_delta, :), [1, 2, 3]));
-    poz_delta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_posterior, idx_delta, :), [1, 2, 3]));
-    poz_delta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_posterior, idx_delta, :), [1, 2, 3]));
-    writematrix(poz_delta, [PATH_OUT, 'lineplots_poz_delta.csv']);
+    posterior_delta = zeros(length(tf_times), 4);
+    posterior_delta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_posterior, idx_delta, :), [1, 2, 3]));
+    posterior_delta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_posterior, idx_delta, :), [1, 2, 3]));
+    posterior_delta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_posterior, idx_delta, :), [1, 2, 3]));
+    posterior_delta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_posterior, idx_delta, :), [1, 2, 3]));
+    writematrix(posterior_delta, [PATH_OUT, 'lineplots_posterior_delta.csv']);
 
-    poz_theta = zeros(length(tf_times), 4);
-    poz_theta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_posterior, idx_theta, :), [1, 2, 3]));
-    poz_theta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_posterior, idx_theta, :), [1, 2, 3]));
-    poz_theta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_posterior, idx_theta, :), [1, 2, 3]));
-    poz_theta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_posterior, idx_theta, :), [1, 2, 3]));
-    writematrix(poz_theta, [PATH_OUT, 'lineplots_poz_theta.csv']);
+    posterior_theta = zeros(length(tf_times), 4);
+    posterior_theta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_posterior, idx_theta, :), [1, 2, 3]));
+    posterior_theta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_posterior, idx_theta, :), [1, 2, 3]));
+    posterior_theta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_posterior, idx_theta, :), [1, 2, 3]));
+    posterior_theta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_posterior, idx_theta, :), [1, 2, 3]));
+    writematrix(posterior_theta, [PATH_OUT, 'lineplots_posterior_theta.csv']);
 
-    poz_alpha = zeros(length(tf_times), 4);
-    poz_alpha(:, 1) = squeeze(mean(ersp_std_rep(:, idx_posterior, idx_alpha, :), [1, 2, 3]));
-    poz_alpha(:, 2) = squeeze(mean(ersp_std_swi(:, idx_posterior, idx_alpha, :), [1, 2, 3]));
-    poz_alpha(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_posterior, idx_alpha, :), [1, 2, 3]));
-    poz_alpha(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_posterior, idx_alpha, :), [1, 2, 3]));
-    writematrix(poz_alpha, [PATH_OUT, 'lineplots_poz_alpha.csv']);
+    posterior_alpha = zeros(length(tf_times), 4);
+    posterior_alpha(:, 1) = squeeze(mean(ersp_std_rep(:, idx_posterior, idx_alpha, :), [1, 2, 3]));
+    posterior_alpha(:, 2) = squeeze(mean(ersp_std_swi(:, idx_posterior, idx_alpha, :), [1, 2, 3]));
+    posterior_alpha(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_posterior, idx_alpha, :), [1, 2, 3]));
+    posterior_alpha(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_posterior, idx_alpha, :), [1, 2, 3]));
+    writematrix(posterior_alpha, [PATH_OUT, 'lineplots_posterior_alpha.csv']);
 
-    poz_beta = zeros(length(tf_times), 4);
-    poz_beta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_posterior, idx_beta, :), [1, 2, 3]));
-    poz_beta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_posterior, idx_beta, :), [1, 2, 3]));
-    poz_beta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_posterior, idx_beta, :), [1, 2, 3]));
-    poz_beta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_posterior, idx_beta, :), [1, 2, 3]));
-    writematrix(poz_beta, [PATH_OUT, 'lineplots_poz_beta.csv']);
+    posterior_beta = zeros(length(tf_times), 4);
+    posterior_beta(:, 1) = squeeze(mean(ersp_std_rep(:, idx_posterior, idx_beta, :), [1, 2, 3]));
+    posterior_beta(:, 2) = squeeze(mean(ersp_std_swi(:, idx_posterior, idx_beta, :), [1, 2, 3]));
+    posterior_beta(:, 3) = squeeze(mean(ersp_bon_rep(:, idx_posterior, idx_beta, :), [1, 2, 3]));
+    posterior_beta(:, 4) = squeeze(mean(ersp_bon_swi(:, idx_posterior, idx_beta, :), [1, 2, 3]));
+    writematrix(posterior_beta, [PATH_OUT, 'lineplots_posterior_beta.csv']);
+
+
+    figure()
+    subplot(4, 2, 1)
+    plot(tf_times, frontal_delta, 'LineWidth', 2)
+    subplot(4, 2, 2)
+    plot(tf_times, posterior_delta, 'LineWidth', 2)
+    subplot(4, 2, 3)
+    plot(tf_times, frontal_theta, 'LineWidth', 2)
+    subplot(4, 2, 4)
+    plot(tf_times, posterior_theta, 'LineWidth', 2)
+    subplot(4, 2, 5)
+    plot(tf_times, frontal_alpha, 'LineWidth', 2)
+    subplot(4, 2, 6)
+    plot(tf_times, posterior_alpha, 'LineWidth', 2)
+    subplot(4, 2, 7)
+    plot(tf_times, frontal_beta, 'LineWidth', 2)
+    subplot(4, 2, 8)
+    plot(tf_times, posterior_beta, 'LineWidth', 2)
+    legend({'std-rep', 'std-swi', 'bon-rep', 'bon-swi'})
 
 end % End part 3
 
