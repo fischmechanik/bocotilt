@@ -16,7 +16,7 @@ subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 
                 'VP29', 'VP30', 'VP31', 'VP32', 'VP33', 'VP34'};
 
 % SWITCH: Switch parts of script on/off
-to_execute = {'part1'};
+to_execute = {'part5'};
 
 % Part 1: Calculate ersp
 if ismember('part1', to_execute)
@@ -799,7 +799,6 @@ if ismember('part4', to_execute)
     rm = fitrm(t, 'b1-b4~1', 'WithinDesign', within);
     anova_ac = ranova(rm, 'WithinModel', 'bonus + switch + bonus*switch');
     anova_ac
-    aa=bb
     
     % Perform rmANOVA for points earned
     varnames = {'id', 'b1', 'b2', 'b3', 'b4'};
