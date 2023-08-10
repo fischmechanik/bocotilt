@@ -690,7 +690,6 @@ if ismember('part4', to_execute)
     % Loop subjects
     behavior_rt = [];
     behavior_ac = [];
-    behavior_pp = [];
     for s = 1 : length(subject_list)
 
         % participant identifiers
@@ -761,28 +760,19 @@ if ismember('part4', to_execute)
                 % Get correct_idx for condition
                 idx_correct = EEG.trialinfo(:, 18) == 1 & idx_condition;
 
-                % Get correct_idx for condition
-                idx_points_earned = EEG.trialinfo(:, 24) == 1 & idx_condition;
-
                 % Get accuracy
                 ac = sum(idx_correct) / sum(idx_condition);
 
                 % Get rt
                 rt = mean(EEG.trialinfo(idx_correct, 15));
 
-                % % of points earned
-                pp = sum(idx_points_earned) / sum(idx_condition);
-
-
+                % Write to matrices
                 behavior_rt(s, counter) = rt;
                 behavior_ac(s, counter) = ac; 
-                behavior_pp(s, counter) = pp; 
  
             end
         end
     end
-
-    save('behavioral_data.mat', 'behavior_rt', 'behavior_ac')
 
     % Perform rmANOVA for rt
     varnames = {'id', 'b1', 'b2', 'b3', 'b4'};
@@ -799,14 +789,6 @@ if ismember('part4', to_execute)
     rm = fitrm(t, 'b1-b4~1', 'WithinDesign', within);
     anova_ac = ranova(rm, 'WithinModel', 'bonus + switch + bonus*switch');
     anova_ac
-    
-    % Perform rmANOVA for points earned
-    varnames = {'id', 'b1', 'b2', 'b3', 'b4'};
-    t = table([1 : numel(subject_list)]', behavior_pp(:, 1), behavior_pp(:, 2), behavior_pp(:, 3), behavior_pp(:, 4), 'VariableNames', varnames);
-    within = table({'std'; 'std'; 'bon'; 'bon'}, {'rep'; 'swi'; 'rep'; 'swi'}, 'VariableNames', {'bonus', 'switch'});
-    rm = fitrm(t, 'b1-b4~1', 'WithinDesign', within);
-    anova_pp = ranova(rm, 'WithinModel', 'bonus + switch + bonus*switch');
-    anova_pp
 
     % Save behavioral data for veusz
     rt_mean = mean(behavior_rt, 1);
@@ -819,13 +801,8 @@ if ismember('part4', to_execute)
     ac_out = [ac_mean(1), ac_sd(1), ac_mean(3), ac_sd(3); ac_mean(2), ac_sd(2), ac_mean(4), ac_sd(4)];
     dlmwrite([PATH_OUT, 'ac_veusz.csv'], ac_out, 'delimiter', '\t');
 
-    pp_mean = mean(behavior_pp, 1);
-    pp_sd = std(behavior_pp, [], 1) / sqrt(length(subject_list));
-    pp_out = [pp_mean(1), pp_sd(1), pp_mean(3), pp_sd(3); pp_mean(2), pp_sd(2), pp_mean(4), pp_sd(4)];
-    dlmwrite([PATH_OUT, 'pp_veusz.csv'], pp_out, 'delimiter', '\t');
-
+    % A huble x-axis
     dlmwrite([PATH_OUT, 'xax.csv'], [1; 2]);
-
 
 end % End part 4
 
@@ -848,7 +825,7 @@ if ismember('part5', to_execute)
     % Include NaN
     self_reports(self_reports == 99) = NaN;
 
-    % T-test stuff
+    % T-tests
     [mot_sig, mot_p, mot_ci, mot_stat] = ttest(self_reports(:, 4), self_reports(:, 5));
     [effo_sig, effo_p, effo_ci, effo_stat] = ttest(self_reports(:, 6), self_reports(:, 7));
     [mw_sig, mw_p, mw_ci, mw_stat] = ttest(self_reports(:, 8), self_reports(:, 9));
