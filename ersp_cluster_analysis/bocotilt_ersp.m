@@ -16,7 +16,7 @@ subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 
                 'VP29', 'VP30', 'VP31', 'VP32', 'VP33', 'VP34'};
 
 % SWITCH: Switch parts of script on/off
-to_execute = {'part5'};
+to_execute = {'part7'};
 
 % Part 1: Calculate ersp
 if ismember('part1', to_execute)
@@ -844,3 +844,397 @@ if ismember('part5', to_execute)
 end % End part 5
 
 
+
+% Part 6: Correlations
+if ismember('part6', to_execute)
+
+    % Init eeglab
+    addpath(PATH_EEGLAB);
+    eeglab;
+
+    % Loop subjects
+    behavior_rt = [];
+    behavior_ac = [];
+    for s = 1 : length(subject_list)
+
+        % participant identifiers
+        subject = subject_list{s};
+        id = str2num(subject(3 : 4));
+
+        % Load data
+        EEG = pop_loadset('filename', [subject_list{s} '_cleaned.set'], 'filepath', PATH_AUTOCLEANED, 'loadmode', 'info');
+
+        % Trialinfo columns
+        %  1: id
+        %  2: block_nr
+        %  3: trial_nr
+        %  4: bonustrial
+        %  5: tilt_task
+        %  6: cue_ax
+        %  7: target_red_left
+        %  8: distractor_red_left
+        %  9: response_interference
+        % 10: task_switch
+        % 11: prev_switch
+        % 12: prev_accuracy
+        % 13: correct_response
+        % 14: response_side
+        % 15: rt
+        % 16: rt_thresh_color
+        % 17: rt_thresh_tilt
+        % 18: accuracy
+        % 19: position_color
+        % 20: position_tilt
+        % 21: position_target
+        % 22: position_distractor    
+        % 23: sequence_position
+        % 24: Point(s) earned 
+
+        % Exclude trials
+        to_keep = EEG.trialinfo(:, 2) > 4 &...
+        EEG.trialinfo(:, 23) > 1;
+        EEG.trialinfo = EEG.trialinfo(to_keep, :);
+
+        % Loop bonus conditions
+        for bon = 1 : 2
+
+            % Get condition idx
+            idx_condition = EEG.trialinfo(:, 4) == bon - 1;
+
+            % Get correct_idx for condition
+            idx_correct = EEG.trialinfo(:, 18) == 1 & idx_condition;
+
+            % Get accuracy
+            ac = sum(idx_correct) / sum(idx_condition);
+
+            % Get rt
+            rt = mean(EEG.trialinfo(idx_correct, 15));
+
+            % Write to matrices
+            behavior_rt(s, bon) = rt;
+            behavior_ac(s, bon) = ac; 
+
+        end
+    end
+
+    % Load cluster struct
+    load([PATH_OUT 'significant_clusters.mat']);
+
+    % Get theta cluster idx
+    clust1_idx = clusts(1).idx;
+
+    % Load ersps
+    load([PATH_TF_DATA, 'ersp_std_rep.mat']);
+    load([PATH_TF_DATA, 'ersp_std_swi.mat']);
+    load([PATH_TF_DATA, 'ersp_bon_rep.mat']);
+    load([PATH_TF_DATA, 'ersp_bon_swi.mat']);
+
+    % Get dims
+    [n_subjects, n_channels, n_freqs, n_times] = size(ersp_std_rep);
+
+    % Average in theta cluster (1st col standard, 2nd col bonus)
+    theta_average = [];
+    for s = 1 : n_subjects
+        tmp = double((squeeze(ersp_std_rep(s, :, :, :)) + squeeze(ersp_std_swi(s, :, :, :))) / 2);
+        theta_average(s, 1) = mean(tmp(clust1_idx));
+        tmp = double((squeeze(ersp_bon_rep(s, :, :, :)) + squeeze(ersp_bon_swi(s, :, :, :))) / 2);
+        theta_average(s, 2) = mean(tmp(clust1_idx));
+    end
+
+    % Add differences
+    behavior_rt(:, 3) = behavior_rt(:, 2) - behavior_rt(:, 1);
+    behavior_ac(:, 3) = behavior_ac(:, 2) - behavior_ac(:, 1);
+    theta_average(:, 3) = theta_average(:, 2) - theta_average(:, 1);
+
+    % Stack
+    d = cat(2, behavior_rt, behavior_ac, theta_average);
+
+    % Correlate
+    [R, P] = corrcoef(d);
+
+end % End part 6
+
+% Part 7: Correlations
+if ismember('part7', to_execute)
+
+    % Collect ids
+    id_list = [];
+    for s = 1 : length(subject_list)
+        id_list(end + 1) = str2num(subject_list{s}(3 : 4));
+    end
+
+    % Load self report measures
+    % 9 columns: 1=id, 2=correct questionnaire version, 3=cond_attended, 4=mot_std, 5=mot_bonus, 6=effort_std, 7=effort_bonus, 8=mw_std, 9=mw_bonus   
+    self_reports = readmatrix([PATH_SELF_REPORT, 'self_report_measures.csv']);
+
+    % Exclude non used datasets
+    self_reports = self_reports(ismember(self_reports(:, 1), id_list), :);
+    % Init ft
+    addpath(PATH_FIELDTRIP);
+    ft_defaults;
+
+    % Loop subjects
+    behavior_rt = [];
+    behavior_ac = [];
+    for s = 1 : length(subject_list)
+
+        % participant identifiers
+        subject = subject_list{s};
+        id = str2num(subject(3 : 4));
+
+        % Load data
+        EEG = pop_loadset('filename', [subject_list{s} '_cleaned.set'], 'filepath', PATH_AUTOCLEANED, 'loadmode', 'info');
+
+        % Trialinfo columns
+        %  1: id
+        %  2: block_nr
+        %  3: trial_nr
+        %  4: bonustrial
+        %  5: tilt_task
+        %  6: cue_ax
+        %  7: target_red_left
+        %  8: distractor_red_left
+        %  9: response_interference
+        % 10: task_switch
+        % 11: prev_switch
+        % 12: prev_accuracy
+        % 13: correct_response
+        % 14: response_side
+        % 15: rt
+        % 16: rt_thresh_color
+        % 17: rt_thresh_tilt
+        % 18: accuracy
+        % 19: position_color
+        % 20: position_tilt
+        % 21: position_target
+        % 22: position_distractor    
+        % 23: sequence_position
+        % 24: Point(s) earned 
+
+        % Exclude trials
+        to_keep = EEG.trialinfo(:, 2) > 4 &...
+        EEG.trialinfo(:, 23) > 1;
+        EEG.trialinfo = EEG.trialinfo(to_keep, :);
+
+        % Loop bonus conditions
+        for bon = 1 : 2
+
+            % Get condition idx
+            idx_condition = EEG.trialinfo(:, 4) == bon - 1;
+
+            % Get correct_idx for condition
+            idx_correct = EEG.trialinfo(:, 18) == 1 & idx_condition;
+
+            % Get accuracy
+            ac = sum(idx_correct) / sum(idx_condition);
+
+            % Get rt
+            rt = mean(EEG.trialinfo(idx_correct, 15));
+
+            % Write to matrices
+            behavior_rt(s, bon) = rt;
+            behavior_ac(s, bon) = ac; 
+
+        end
+    end
+
+    % calculate inverse efficiency scores
+    behavior_ie = behavior_rt ./ behavior_ac;
+
+    % Load shit
+    load([PATH_TF_DATA, 'chanlocs.mat']);
+    load([PATH_TF_DATA, 'tf_freqs.mat']);
+    load([PATH_TF_DATA, 'tf_times.mat']);
+    load([PATH_TF_DATA, 'ersp_std_rep.mat']);
+    load([PATH_TF_DATA, 'ersp_std_swi.mat']);
+    load([PATH_TF_DATA, 'ersp_bon_rep.mat']);
+    load([PATH_TF_DATA, 'ersp_bon_swi.mat']);
+
+    % Exclude
+    to_exclude = {};
+    idx_exclude = [];
+    for ex = 1 : numel(to_exclude)
+        idx_exclude(ex) = find(strcmpi(subject_list, to_exclude{ex}));
+    end
+    ersp_std_rep(idx_exclude, :, :, :) = [];
+    ersp_std_swi(idx_exclude, :, :, :) = [];
+    ersp_bon_rep(idx_exclude, :, :, :) = [];
+    ersp_bon_swi(idx_exclude, :, :, :) = [];
+
+    % Get dims
+    [n_subjects, n_channels, n_freqs, n_times] = size(ersp_std_rep);
+
+    % Build elec struct
+    for ch = 1 : n_channels
+        elec.label{ch} = chanlocs(ch).labels;
+        elec.elecpos(ch, :) = [chanlocs(ch).X, chanlocs(ch).Y, chanlocs(ch).Z];
+        elec.chanpos(ch, :) = [chanlocs(ch).X, chanlocs(ch).Y, chanlocs(ch).Z];
+    end
+
+    % Prepare layout
+    cfg      = [];
+    cfg.elec = elec;
+    cfg.rotate = 90;
+    layout = ft_prepare_layout(cfg);
+
+    % Re-organize data
+    for s = 1 : n_subjects
+
+        ersp_std.powspctrm = double((squeeze(ersp_std_rep(s, :, :, :)) + squeeze(ersp_std_swi(s, :, :, :))) / 2);
+        ersp_std.dimord    = 'chan_freq_time';
+        ersp_std.label     = elec.label;
+        ersp_std.freq      = tf_freqs;
+        ersp_std.time      = tf_times;
+
+        ersp_bon.powspctrm = double((squeeze(ersp_bon_rep(s, :, :, :)) + squeeze(ersp_bon_swi(s, :, :, :))) / 2);
+        ersp_bon.dimord    = 'chan_freq_time';
+        ersp_bon.label     = elec.label;
+        ersp_bon.freq      = tf_freqs;
+        ersp_bon.time      = tf_times;
+
+        ersp_diff.powspctrm = (double((squeeze(ersp_bon_rep(s, :, :, :)) + squeeze(ersp_bon_swi(s, :, :, :))) / 2)) - (double((squeeze(ersp_std_rep(s, :, :, :)) + squeeze(ersp_std_swi(s, :, :, :))) / 2));
+        ersp_diff.dimord    = 'chan_freq_time';
+        ersp_diff.label     = elec.label;
+        ersp_diff.freq      = tf_freqs;
+        ersp_diff.time      = tf_times;
+
+        d_ersp_std{s} = ersp_std;
+        d_ersp_bon{s} = ersp_bon;
+        d_ersp_diff{s} = ersp_diff;
+
+    end
+
+    % Calculate grand averages
+    cfg = [];
+    cfg.keepindividual = 'yes';
+    GA_std = ft_freqgrandaverage(cfg, d_ersp_std{1, :});
+    GA_bon = ft_freqgrandaverage(cfg, d_ersp_bon{1, :});
+    GA_diff = ft_freqgrandaverage(cfg, d_ersp_diff{1, :});
+
+    % Define neighbours
+    cfg                 = [];
+    cfg.layout          = layout;
+    cfg.feedback        = 'no';
+    cfg.method          = 'triangulation'; 
+    cfg.neighbours      = ft_prepare_neighbours(cfg, GA_std);
+    neighbours          = cfg.neighbours;
+
+    % Testparams
+    testalpha   = 0.025;
+    voxelalpha  = 0.001;
+    nperm       = 1000;
+
+    % Config
+    cfg.statistic        = 'ft_statfun_correlationT';
+    cfg.tail             = 0; 
+    cfg.alpha            = testalpha;
+    cfg.neighbours       = neighbours;
+    cfg.minnbchan        = 2;
+    cfg.method           = 'montecarlo';
+    cfg.correctm         = 'cluster';
+    cfg.clustertail      = 0;
+    cfg.clusteralpha     = voxelalpha;
+    cfg.clusterstatistic = 'maxsum';
+    cfg.numrandomization = nperm;
+    cfg.computecritval   = 'yes'; 
+    cfg.ivar             = 1;
+    cfg.design           = behavior_rt(:, 2) - behavior_rt(:, 1);
+
+    % The test
+    [stat] = ft_freqstatistics(cfg, GA_diff);
+
+    % Identify significant clusters
+    clust_thresh = 0.1;
+    clusts = struct();
+    cnt = 0;
+    stat_names = {'stat'};
+    for s = 1 : numel(stat_names)
+        stat = eval(stat_names{s});
+        if ~isempty(stat.negclusters)
+            neg_idx = find([stat.negclusters(1, :).prob] < clust_thresh);
+            for c = 1 : numel(neg_idx)
+                cnt = cnt + 1;
+                clusts(cnt).testlabel = stat_names{s};
+                clusts(cnt).clustnum = cnt;
+                clusts(cnt).time = stat.time;
+                clusts(cnt).freq = stat.freq;
+                clusts(cnt).polarity = -1;
+                clusts(cnt).prob = stat.negclusters(1, neg_idx(c)).prob;
+                clusts(cnt).idx = stat.negclusterslabelmat == neg_idx(c);
+                clusts(cnt).stats = clusts(cnt).idx .* stat.stat * -1;
+                clusts(cnt).chans_sig = find(logical(mean(clusts(cnt).idx, [2,3])));
+            end
+        end
+        if ~isempty(stat.posclusters)
+            pos_idx = find([stat.posclusters(1, :).prob] < clust_thresh);
+            for c = 1 : numel(pos_idx)
+                cnt = cnt + 1;
+                clusts(cnt).testlabel = stat_names{s};
+                clusts(cnt).clustnum = cnt;
+                clusts(cnt).time = stat.time;
+                clusts(cnt).freq = stat.freq;
+                clusts(cnt).polarity = 1;
+                clusts(cnt).prob = stat.posclusters(1, pos_idx(c)).prob;
+                clusts(cnt).idx = stat.posclusterslabelmat == pos_idx(c);
+                clusts(cnt).stats = clusts(cnt).idx .* stat.stat;
+                clusts(cnt).chans_sig = find(logical(mean(clusts(cnt).idx, [2, 3])));
+            end
+        end
+    end
+
+    % Init eeglab
+    addpath(PATH_EEGLAB);
+    eeglab;
+
+    % Plot identified cluster
+    clinecol = 'k';
+    cmap = 'jet';
+    for cnt = 1 : numel(clusts)
+
+        figure('Visible', 'off'); clf;
+
+        subplot(2, 2, 1)
+        pd = squeeze(sum(clusts(cnt).stats, 1));
+        contourf(clusts(cnt).time, clusts(cnt).freq, pd, 40, 'linecolor','none')
+        hold on
+        contour(clusts(cnt).time, clusts(cnt).freq, logical(squeeze(mean(clusts(cnt).idx, 1))), 1, 'linecolor', clinecol, 'LineWidth', 2)
+        colormap(cmap)
+        set(gca, 'xlim', [clusts(cnt).time(1), clusts(cnt).time(end)], 'clim', [-max(abs(pd(:))), max(abs(pd(:)))], 'YScale', 'lin', 'YTick', [4, 8, 12, 20])
+        colorbar;
+        title(['sum t across chans, plrt: ' num2str(clusts(cnt).polarity)], 'FontSize', 10)
+
+        subplot(2, 2, 2)
+        pd = squeeze(mean(clusts(cnt).idx, 1));
+        contourf(clusts(cnt).time, clusts(cnt).freq, pd, 40, 'linecolor','none')
+        hold on
+        contour(clusts(cnt).time, clusts(cnt).freq, logical(squeeze(mean(clusts(cnt).idx, 1))), 1, 'linecolor', clinecol, 'LineWidth', 2)
+        colormap(cmap)
+        set(gca, 'xlim', [clusts(cnt).time(1), clusts(cnt).time(end)], 'clim', [-1, 1], 'YScale', 'lin', 'YTick', [4, 8, 12, 20])
+        colorbar;
+        title(['proportion chans significant'], 'FontSize', 10)
+
+        subplot(2, 2, 3)
+        pd = squeeze(sum(clusts(cnt).stats, [2, 3]));
+        topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'on');
+        colormap(cmap)
+        set(gca, 'clim', [-max(abs(pd(:))), max(abs(pd(:)))])
+        colorbar;
+        title(['sum t per electrode'], 'FontSize', 10)
+
+        subplot(2, 2, 4)
+        pd = squeeze(mean(clusts(cnt).idx, [2, 3]));
+        topoplot(pd, chanlocs, 'plotrad', 0.7, 'intrad', 0.7, 'intsquare', 'on', 'conv', 'off', 'electrodes', 'on');
+        colormap(cmap)
+        set(gca, 'clim', [-1, 1])
+        colorbar;
+        title(['proportion tf-points significant'], 'FontSize', 10)
+
+        saveas(gcf, [PATH_OUT 'correl_clustnum_' num2str(clusts(cnt).clustnum) '_' clusts(cnt).testlabel '.png']); 
+    end
+
+    figure()
+    chan_idx = [17,127];
+    pd = squeeze(mean(stat.rho(chan_idx, :, :), 1));
+    contourf(clusts(cnt).time, clusts(cnt).freq, pd, 40, 'linecolor','none')
+
+end % End part 7
