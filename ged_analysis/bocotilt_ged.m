@@ -5,6 +5,7 @@ clear all;
 PATH_EEGLAB      = '/home/plkn/eeglab2024.0/';
 PATH_AUTOCLEANED = '/mnt/data_dump/bocotilt/2_autocleaned/';
 PATH_GED         = '/mnt/data_dump/bocotilt/8_ged_analysis/';
+PATH_OUT         = '/mnt/data_dump/bocotilt/8_ged_analysis/results/';
 
 % Subject list
 subject_list = {'VP09', 'VP17', 'VP25', 'VP10', 'VP11', 'VP13', 'VP14', 'VP15', 'VP16', 'VP18',...
@@ -351,7 +352,6 @@ if ismember('part3', to_execute)
     tf_times = tf_times(idx_time);
 
     % ERSP matrices
-    ersp_all = zeros(length(subject_list), numel(tf_freqs), numel(tf_times));
     ersp_std = zeros(length(subject_list), numel(tf_freqs), numel(tf_times));
     ersp_bon = zeros(length(subject_list), numel(tf_freqs), numel(tf_times));
 
@@ -368,7 +368,6 @@ if ismember('part3', to_execute)
 
         % participant identifiers
         subject = subject_list{s};
-        id = str2num(subject(3 : 4));
 
         % Talk
         fprintf('\nWorking on subject %i/%i\n', s, length(subject_list));
@@ -392,98 +391,56 @@ if ismember('part3', to_execute)
         [~, blidx2] = min(abs(tf_times - ersp_bl(2)));
         blvals = squeeze(mean(tmp(:, blidx1 : blidx2), 2));
 
-        % Calculate ersp
-        ersp_all(s, :, :) = single(10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_correct), 3)), blvals)));
+        % Calculate ersps for conditions
         ersp_std(s, :, :) = single(10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_std), 3)), blvals)));
         ersp_bon(s, :, :) = single(10 * log10(bsxfun(@rdivide, squeeze(mean(powcube(:, :, idx_bon), 3)), blvals)));
 
-        % Z-Standardize trials
-        zcube = zeros(size(powcube));
-
-        % Apply single trial baseline
-        blidx = dsearchn(tf_times', [-500, -200]');
-        for t = 1 : size(powcube, 3)
-            d_trial = squeeze(powcube(:, :, t)); % Get trial tfmat
-            blvals = squeeze(mean(d_trial(:, blidx(1) : blidx(2)), 2)); % Get baseline
-            blstd = std(d_trial(:, blidx(1) : blidx(2)), 0, 2);
-            d_trial = bsxfun(@minus, d_trial, blvals);
-            zcube(:, :, t) = bsxfun(@rdivide, d_trial, blstd);
-        end
-
-        zcube = powcube;
-
-        % Select and split data
-        zcube_all = zcube(:, :, idx_correct);
-        zcube_std = zcube(:, :, idx_std & idx_correct);
-        zcube_bon = zcube(:, :, idx_bon & idx_correct);
+        % Select correct trials
+        powcube = powcube(:, :, idx_correct);
 
         % Select and split trialinfo
         trialinfo_all = trialinfo(idx_correct, :);
-        trialinfo_std = trialinfo(idx_std & idx_correct, :);
-        trialinfo_bon = trialinfo(idx_bon & idx_correct, :);
 
         % Regression design matrices
         desmat_all = [ones(size(trialinfo_all, 1), 1), trialinfo_all(:, 15)];
-        desmat_std = [ones(size(trialinfo_std, 1), 1), trialinfo_std(:, 15)];
-        desmat_bon = [ones(size(trialinfo_bon, 1), 1), trialinfo_bon(:, 15)];
 
         % Normalize predictors
         desmat_all(:, 2) = zscore(desmat_all(:, 2), 0, 1);
-        desmat_std(:, 2) = zscore(desmat_std(:, 2), 0, 1);
-        desmat_bon(:, 2) = zscore(desmat_bon(:, 2), 0, 1);
 
         % Reshape data (trials in rows, each tf point a column)
-        d_all = reshape(zcube_all, numel(tf_times) * numel(tf_freqs), size(zcube_all, 3))';
-        d_std = reshape(zcube_std, numel(tf_times) * numel(tf_freqs), size(zcube_std, 3))';
-        d_bon = reshape(zcube_bon, numel(tf_times) * numel(tf_freqs), size(zcube_bon, 3))';
+        d = reshape(powcube, numel(tf_times) * numel(tf_freqs), size(powcube, 3))';
 
         % Normalize data
-        d_all = zscore(d_all, 0, 1);
-        d_std = zscore(d_std, 0, 1);
-        d_bon = zscore(d_bon, 0, 1);
-        
+        d = zscore(d, 0, 1);
 
         % OLS fit
-
-        tmp = (desmat_all' * desmat_all) \ desmat_all' * d_all;
-        all_true(s, :, :) = reshape(squeeze(tmp(2, :)), [numel(tf_freqs), numel(tf_times)]);
-
-        tmp = (desmat_std' * desmat_std) \ desmat_std' * d_std;
-        std_true(s, :, :) = reshape(squeeze(tmp(2, :)), [numel(tf_freqs), numel(tf_times)]);
-
-        tmp = (desmat_bon' * desmat_bon) \ desmat_bon' * d_bon;
-        bon_true(s, :, :) = reshape(squeeze(tmp(2, :)), [numel(tf_freqs), numel(tf_times)]);
+        tmp = (desmat_all' * desmat_all) \ desmat_all' * d;
+        coefs_true(s, :, :) = reshape(squeeze(tmp(2, :)), [numel(tf_freqs), numel(tf_times)]);
 
         % Generate null hypothesis distribution data
-
         fakedesmat = desmat_all;
         fakedesmat(:, 2) = fakedesmat(randperm(size(fakedesmat, 1)), 2);
-        tmp = (fakedesmat' * fakedesmat) \ fakedesmat' * d_all;
-        all_fake(s, :, :) = reshape(squeeze(tmp(2, :)), [numel(tf_freqs), numel(tf_times)]);
-
-        fakedesmat = desmat_std;
-        fakedesmat(:, 2) = fakedesmat(randperm(size(fakedesmat, 1)), 2);
-        tmp = (fakedesmat' * fakedesmat) \ fakedesmat' * d_std;
-        std_fake(s, :, :) = reshape(squeeze(tmp(2, :)), [numel(tf_freqs), numel(tf_times)]);
-
-        fakedesmat = desmat_bon;
-        fakedesmat(:, 2) = fakedesmat(randperm(size(fakedesmat, 1)), 2);
-        tmp = (fakedesmat' * fakedesmat) \ fakedesmat' * d_bon;
-        bon_fake(s, :, :) = reshape(squeeze(tmp(2, :)), [numel(tf_freqs), numel(tf_times)]);
+        tmp = (fakedesmat' * fakedesmat) \ fakedesmat' * d;
+        coefs_fake(s, :, :) = reshape(squeeze(tmp(2, :)), [numel(tf_freqs), numel(tf_times)]);
 
     end % End subject loop
 
-    % Test coefficients
+    % Test parameters
     pval_voxel   = 0.025;
     pval_cluster = 0.001;
     n_perms      = 1000;
-    d1 = all_true;
-    d2 = all_fake; %zeros(size(all_true));
+
+    % Test data
+    d1 = coefs_true;
+    d2 = coefs_fake;
+
+    % Init matrices for permutation testing
     n_freq = length(tf_freqs);
     n_time = length(tf_times);
     permuted_t = zeros(n_perms, n_freq, n_time);
     max_clust = zeros(n_perms, 2);
 
+    % Permutation loop
     for p = 1 : n_perms
         fprintf('%i\n', p);
         toflip = find(round(rand(length(subject_list), 1)));
@@ -523,16 +480,20 @@ if ismember('part3', to_execute)
     for clu = 1 : length(clust2remove)
         tmat(clusts.PixelIdxList{clust2remove(clu)}) = 0;
     end
-    contourres = logical(tmat);
+
+    % Get clusters
+    cluster_outlines = logical(tmat);
 
     % Save contour of effect
-    %dlmwrite([PATH_VEUSZ, 'inference_spatial_filter/', 'tot_contour.csv'], contourres);
+    dlmwrite([PATH_OUT, 'cluster_outlines.csv'], cluster_outlines);
 
-    % Calculate and save effect sizes
-    petasq = (tvals .^ 2) ./ ((tvals .^ 2) + (numel(subject_list) - 1));
-    adj_petasq = petasq - (1 - petasq) .* (1 / (numel(subject_list) - 1));
-    %dlmwrite([PATH_VEUSZ, 'inference_spatial_filter/', 'tot_effect_sizes.csv'], adj_petasq);
+    % Save ERSP of component for conditions
+    dlmwrite([PATH_OUT, 'ersp_std.csv'], squeeze(mean(ersp_std, 1)));
+    dlmwrite([PATH_OUT, 'ersp_bon.csv'], squeeze(mean(ersp_bon, 1)));
 
+    % Save average coefficients
+    dlmwrite([PATH_OUT, 'coefs_true.csv'], squeeze(mean(coefs_true, 1)));
+    dlmwrite([PATH_OUT, 'coefs_fake.csv'], squeeze(mean(coefs_fake, 1)));
 
     % Plot ersps
     figure()
@@ -554,10 +515,10 @@ if ismember('part3', to_execute)
     title('bonus')
 
     subplot(3, 1, 3)
-    pd = squeeze(mean(all_true, 1));
+    pd = squeeze(mean(coefs_true, 1));
     contourf(tf_times, tf_freqs, pd, 40, 'linecolor','none')
     hold on
-    contour(tf_times, tf_freqs, contourres, 1, 'linecolor', 'k', 'LineWidth', 2)
+    contour(tf_times, tf_freqs, cluster_outlines, 1, 'linecolor', 'k', 'LineWidth', 2)
     set(gca, 'clim', [-0.1, 0.1], 'YScale', 'lin', 'YTick', [4, 8, 12, 20])
     colormap(jet)
     colorbar;
